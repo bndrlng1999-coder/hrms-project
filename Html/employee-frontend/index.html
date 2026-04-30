@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="tanvoxApp">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tanvox Platform</title>
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:,">
+</head>
+
+<body ng-controller="MainCtrl" ng-class="{'dark-mode': darkMode}">
+  <!-- LOGIN / REGISTER -->
+  <div ng-if="!loggedInUser" class="auth-page">
+
+    <div class="auth-left">
+      <div class="brand-badge">TANVOX TECHNOLOGIES</div>
+      <h1>Build Skills. Crack Interviews. Get Placed.</h1>
+      <p>One platform for training, placement tracking, resume building, mock tests, coding practice and AI interviews.</p>
+    </div>
+
+    <div class="auth-right">
+      <form class="auth-box" name="authForm" novalidate>
+        <p class="auth-success" ng-if="authMessage">{{authMessage}}</p>
+        <p class="auth-error" ng-if="authError">{{authError}}</p>
+
+        <div class="dashboard-badge">
+          {{authMode === 'login' ? 'LOGIN' : 'REGISTER'}}
+        </div>
+
+        <h2>{{authMode === 'login' ? 'Welcome Back 👋' : 'Create Account 🚀'}}</h2>
+
+        <div ng-if="authMode === 'register'">
+          <label>Name</label>
+          <input ng-model="user.name" placeholder="Enter your name">
+        </div>
+
+      <label>Email</label>
+<input
+  type="text"
+  ng-model="user.email"
+  placeholder="Enter email"
+  ng-class="{
+    'input-error': user.email && !checkEmail(user.email),
+    'input-success': user.email && checkEmail(user.email)
+  }"
+>
+<p class="field-error" ng-if="user.email && !checkEmail(user.email)">
+  Enter valid email address
+</p>
+        <label>Password</label>
+<div class="password-wrap">
+  <input
+    type="{{showPassword ? 'text' : 'password'}}"
+    ng-model="user.password"
+    placeholder="Enter password"
+    class="custom-password-input"
+  >
+  <button type="button" class="password-toggle" ng-click="showPassword = !showPassword">
+    {{showPassword ? 'Hide' : 'Show'}}
+  </button>
+</div>
+
+<!-- Strength Bar -->
+<div class="strength-box" ng-if="user.password">
+  <div class="strength-bar">
+    <div 
+      class="strength-fill"
+      ng-class="{
+        'weak': getPasswordStrength(user.password).score === 1,
+        'medium': getPasswordStrength(user.password).score === 2,
+        'strong': getPasswordStrength(user.password).score === 3
+      }"
+      ng-style="{
+        width: (getPasswordStrength(user.password).score * 33) + '%'
+      }"
+    ></div>
+  </div>
+
+  <p class="strength-text"
+     ng-class="{
+       'weak-text': getPasswordStrength(user.password).score === 1,
+       'medium-text': getPasswordStrength(user.password).score === 2,
+       'strong-text': getPasswordStrength(user.password).score === 3
+     }">
+    {{getPasswordStrength(user.password).label}} Password
+  </p>
+
+  <div class="password-rules" ng-if="user.password">
+  <p ng-class="{'rule-ok': user.password.length >= 6, 'rule-no': user.password.length < 6}">
+    At least 6 characters
+  </p>
+  <p ng-class="{'rule-ok': /[A-Z]/.test(user.password), 'rule-no': !/[A-Z]/.test(user.password)}">
+    One uppercase letter
+  </p>
+  <p ng-class="{'rule-ok': /[0-9]/.test(user.password), 'rule-no': !/[0-9]/.test(user.password)}">
+    One number
+  </p>
+  <p ng-class="{'rule-ok': /[^A-Za-z0-9]/.test(user.password), 'rule-no': !/[^A-Za-z0-9]/.test(user.password)}">
+    One special character
+  </p>
+</div>
+</div>
+
+        <div ng-if="authMode === 'register'">
+          <label>Role</label>
+          <select ng-model="user.role">
+            <option value="">Select Role</option>
+            <option value="ADMIN">ADMIN</option>
+            <option value="STUDENT">STUDENT</option>
+          </select>
+        </div>
+
+        <button 
+  type="button"
+  ng-click="authMode === 'login' ? login() : register()"
+  ng-disabled="authLoading || !isAuthValid()"
+>
+  <span ng-if="!authLoading">
+    {{authMode === 'login' ? 'Login' : 'Register'}}
+  </span>
+
+  <span ng-if="authLoading" class="spinner-wrap">
+    <span class="spinner"></span> Please wait...
+  </span>
+</button>
+        <p class="switch-text">
+          {{authMode === 'login' ? "Don't have an account?" : "Already have an account?"}}
+          <span ng-click="switchAuthMode(authMode === 'login' ? 'register' : 'login')">
+            {{authMode === 'login' ? 'Register' : 'Login'}}
+          </span>
+        </p>
+      </form>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div ng-if="loggedInUser" class="app-shell">
+
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="sidebar-logo">T</div>
+        <div>
+          <h2>Tanvox</h2>
+          <p>Learning & Placement</p>
+        </div>
+      </div>
+
+      <div class="menu-section" ng-if="loggedInUser.role === 'ADMIN'">
+        <div class="menu-title">ADMIN MENU</div>
+        <div class="menu-item active">Dashboard</div>
+        <div class="menu-item">Students</div>
+        <div class="menu-item">Companies</div>
+        <div class="menu-item">Placements</div>
+      </div>
+
+      <div class="menu-section" ng-if="loggedInUser.role === 'STUDENT'">
+        <div class="menu-title">STUDENT MENU</div>
+        <div class="menu-item active">Dashboard</div>
+        <div class="menu-item">Resume Builder</div>
+        <div class="menu-item">Mock Test</div>
+        <div class="menu-item">Coding Test</div>
+        <div class="menu-item">Payment Plans</div>
+        <div class="menu-item">AI Interview</div>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="dashboard-badge">
+          {{loggedInUser.role === 'ADMIN' ? 'ADMIN PANEL' : 'STUDENT PANEL'}}
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="topbar">
+        <div>
+          <h1>Tanvox Platform</h1>
+          <p>Welcome back, {{loggedInUser.name}} ({{loggedInUser.role}})</p>
+        </div>
+
+        <div class="topbar-actions">
+          <button class="secondary-btn" ng-click="toggleDarkMode()">
+            {{darkMode ? 'Light Mode' : 'Dark Mode'}}
+          </button>
+          <button ng-click="logout()">Logout</button>
+        </div>
+      </div>
+
+      <!-- ADMIN DASHBOARD -->
+      <section ng-if="loggedInUser.role === 'ADMIN'" class="fade-in">
+        <h3 class="section-title">Dashboard Overview</h3>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <h4>Total Students</h4>
+            <p>{{students.length}}</p>
+          </div>
+          <div class="stat-card">
+            <h4>Total Companies</h4>
+            <p>{{companies.length}}</p>
+          </div>
+          <div class="stat-card">
+            <h4>Placed Students</h4>
+            <p>{{getPlacedStudentsCount()}}</p>
+          </div>
+          <div class="stat-card">
+            <h4>Training + Placement</h4>
+            <p>{{getTrainingPlacementCount()}}</p>
+          </div>
+        </div>
+
+        <div class="chart-grid">
+          <div class="chart-card">
+            <h4>Placement Progress</h4>
+            <div class="bar-track">
+              <div class="bar-fill bar-fill-placement"
+                   ng-style="{'width': getPlacementPercentage() + '%'}"></div>
+            </div>
+            <p>{{getPlacedStudentsCount()}} / {{students.length || 0}} students placed</p>
+          </div>
+
+          <div class="chart-card">
+            <h4>Course Split</h4>
+            <div class="bar-track">
+              <div class="bar-fill bar-fill-course"
+                   ng-style="{'width': getTrainingPlacementPercentage() + '%'}"></div>
+            </div>
+            <p>{{getTrainingPlacementCount()}} students enrolled in Training + Placement</p>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="panel-card slide-up">
+            <h3 class="section-title">Student Enrollment</h3>
+
+            <div class="grid-two">
+              <div>
+                <label>Name</label>
+                <input ng-model="student.name" placeholder="Enter student name">
+              </div>
+              <div>
+                <label>Email</label>
+                <input ng-model="student.email" placeholder="Enter email">
+              </div>
+            </div>
+
+            <div class="grid-two">
+              <div>
+                <label>Phone</label>
+                <input ng-model="student.phone" placeholder="Enter phone">
+              </div>
+              <div>
+                <label>Course</label>
+                <select ng-model="student.course">
+                  <option value="">Select Course</option>
+                  <option value="Training - 19999">Training - ₹19,999</option>
+                  <option value="Training + Placement - 35999">Training + Placement - ₹35,999</option>
+                </select>
+              </div>
+            </div>
+
+            <button ng-click="add()">Enroll Student</button>
+          </div>
+
+          <div class="panel-card slide-up">
+            <h3 class="section-title">Company Dashboard</h3>
+
+            <div class="grid-two">
+              <div>
+                <label>Company Name</label>
+                <input ng-model="company.companyName" placeholder="Company name">
+              </div>
+              <div>
+                <label>Role Offered</label>
+                <input ng-model="company.roleOffered" placeholder="Role">
+              </div>
+            </div>
+
+            <div class="grid-two">
+              <div>
+                <label>Package</label>
+                <input ng-model="company.packageAmount" placeholder="Package">
+              </div>
+              <div>
+                <label>Location</label>
+                <input ng-model="company.location" placeholder="Location">
+              </div>
+            </div>
+
+            <label>Status</label>
+            <input ng-model="company.status" placeholder="Status">
+
+            <button ng-click="addCompany()">Add Company</button>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="panel-card">
+            <h3 class="section-title">Students List</h3>
+
+            <div ng-repeat="s in students" class="student-card hover-lift fade-in">
+              <div class="card-title">{{s.name}}</div>
+              <p><strong>Course:</strong> {{s.course}}</p>
+              <p><strong>Status:</strong> {{s.status || 'Enrolled'}}</p>
+              <p><strong>Placed Company:</strong> {{s.placedCompany || 'Not Placed'}}</p>
+
+              <select ng-model="s.placedCompany">
+                <option value="">Select Company</option>
+                <option ng-repeat="c in companies">{{c.companyName}}</option>
+              </select>
+
+              <div class="action-row">
+                <button ng-click="assignPlacement(s)">Assign Placement</button>
+                <button class="danger-btn" ng-click="delete(s.id)">Delete</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-card">
+            <h3 class="section-title">Companies List</h3>
+
+            <div ng-repeat="c in companies" class="student-card hover-lift fade-in">
+              <div class="card-title">{{c.companyName}}</div>
+              <p><strong>Role:</strong> {{c.roleOffered}}</p>
+              <p><strong>Package:</strong> {{c.packageAmount}}</p>
+              <p><strong>Location:</strong> {{c.location}}</p>
+              <p><strong>Status:</strong> {{c.status}}</p>
+
+              <button class="danger-btn" ng-click="deleteCompany(c.id)">Delete</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STUDENT DASHBOARD -->
+      <section ng-if="loggedInUser.role === 'STUDENT'" class="fade-in">
+        <div class="stats-grid student-stats">
+          <div class="stat-card">
+            <h4>Resume</h4>
+            <p>Ready</p>
+          </div>
+          <div class="stat-card">
+            <h4>Mock Test Score</h4>
+            <p>{{testScore !== null ? testScore + '/3' : '0/3'}}</p>
+          </div>
+          <div class="stat-card">
+            <h4>Coding Practice</h4>
+            <p>Active</p>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="panel-card slide-up">
+            <h3 class="section-title">Resume Builder</h3>
+
+            <div class="grid-two">
+              <div>
+                <label>Name</label>
+                <input ng-model="resume.name" placeholder="Full name">
+                <label>Email</label>
+                <input ng-model="resume.email" placeholder="Email">
+                <label>Phone</label>
+                <input ng-model="resume.phone" placeholder="Phone">
+              </div>
+              <div>
+                <label>Skills</label>
+                <input ng-model="resume.skills" placeholder="Skills">
+                <label>Education</label>
+                <input ng-model="resume.education" placeholder="Education">
+                <label>Experience</label>
+                <input ng-model="resume.experience" placeholder="Experience">
+              </div>
+            </div>
+
+            <div class="action-row">
+              <button ng-click="generateResume()">Generate Resume</button>
+              <button class="secondary-btn" ng-if="generatedResume" ng-click="downloadResume()">Download</button>
+            </div>
+
+            <div ng-if="generatedResume" class="student-card hover-lift fade-in">
+              <div class="card-title">{{generatedResume.name}}</div>
+              <p><strong>Email:</strong> {{generatedResume.email}}</p>
+              <p><strong>Phone:</strong> {{generatedResume.phone}}</p>
+              <p><strong>Skills:</strong> {{generatedResume.skills}}</p>
+              <p><strong>Education:</strong> {{generatedResume.education}}</p>
+              <p><strong>Experience:</strong> {{generatedResume.experience}}</p>
+            </div>
+          </div>
+
+          <div class="panel-card slide-up">
+            <h3 class="section-title">Mock Test</h3>
+
+            <div class="question-block">
+              <p><strong>1. Java is a?</strong></p>
+              <label><input type="radio" ng-model="answers.q1" value="Programming Language"> Programming Language</label><br>
+              <label><input type="radio" ng-model="answers.q1" value="Wrong"> Wrong</label>
+            </div>
+
+            <div class="question-block">
+              <p><strong>2. Which is used for backend in your project?</strong></p>
+              <label><input type="radio" ng-model="answers.q2" value="Spring Boot"> Spring Boot</label><br>
+              <label><input type="radio" ng-model="answers.q2" value="Wrong"> Wrong</label>
+            </div>
+
+            <div class="question-block">
+              <p><strong>3. Which database are you using?</strong></p>
+              <label><input type="radio" ng-model="answers.q3" value="MySQL"> MySQL</label><br>
+              <label><input type="radio" ng-model="answers.q3" value="Wrong"> Wrong</label>
+            </div>
+
+            <button ng-click="submitTest()">Submit Test</button>
+
+            <div ng-if="testScore !== null" class="result-box">
+              Score: {{testScore}} / 3
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="panel-card slide-up">
+            <h3 class="section-title">Coding Test</h3>
+            <p><strong>Problem:</strong> Reverse a string</p>
+
+            <textarea ng-model="codeInput" placeholder="Write your code here..."></textarea>
+
+            <div class="action-row">
+              <button ng-click="runCode()">Run Code</button>
+            </div>
+
+            <div class="result-box" ng-if="codeOutput">
+              {{codeOutput}}
+            </div>
+          </div>
+
+          <div class="panel-card slide-up">
+            <h3 class="section-title">Choose Your Plan</h3>
+
+            <div class="pricing-grid">
+              <div class="pricing-card" ng-class="{'selected-plan': selectedPlan === 'Training - 19999'}">
+                <div class="plan-tag">POPULAR</div>
+                <h4>Training</h4>
+                <div class="price">₹19,999</div>
+                <ul class="plan-features">
+                  <li>Core technical training</li>
+                  <li>Mock tests</li>
+                  <li>Resume builder</li>
+                  <li>Coding practice</li>
+                </ul>
+                <button ng-click="selectPlan('Training - 19999')">Choose Plan</button>
+              </div>
+
+              <div class="pricing-card featured-plan" ng-class="{'selected-plan': selectedPlan === 'Training + Placement - 35999'}">
+                <div class="plan-tag premium-tag">BEST VALUE</div>
+                <h4>Training + Placement</h4>
+                <div class="price">₹35,999</div>
+                <ul class="plan-features">
+                  <li>Everything in Training</li>
+                  <li>Placement tracking</li>
+                  <li>Company access</li>
+                  <li>Interview preparation</li>
+                </ul>
+                <button ng-click="selectPlan('Training + Placement - 35999')">Choose Plan</button>
+              </div>
+            </div>
+
+            <div class="student-card" ng-if="selectedPlan">
+              <div class="card-title">Selected Plan</div>
+              <p><strong>Plan:</strong> {{selectedPlan}}</p>
+              <button ng-click="proceedPayment()">Proceed to Payment</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-card slide-up">
+          <h3 class="section-title">AI Interview Simulator</h3>
+
+          <label>Ask for an interview question or feedback</label>
+          <textarea ng-model="aiQuestion" placeholder="Example: Ask me a Java backend interview question for 4 years experience"></textarea>
+
+          <div class="action-row">
+            <button ng-click="askAIInterview()">Start AI Interview</button>
+          </div>
+
+          <div class="result-box" ng-if="aiReply">
+            <strong>AI Interviewer:</strong>
+            <p>{{aiReply}}</p>
+          </div>
+        </div>
+
+        <div class="toast-container">
+  <div 
+    ng-repeat="t in toasts"
+    class="toast"
+    ng-class="t.type"
+  >
+    {{t.message}}
+  </div>
+</div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

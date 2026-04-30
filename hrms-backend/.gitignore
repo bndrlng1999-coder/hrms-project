@@ -1,0 +1,11 @@
+target
+src/main/resources/application-local.properties
+.DS_Store
+*.log
+*.class
+*.jar
+.classpath
+.project
+.settings
+.idea
+*.iml
