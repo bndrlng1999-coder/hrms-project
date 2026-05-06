@@ -34,6 +34,12 @@ export const authAPI = {
   login: (email, password) => api.post('/auth/login', { email, password }),
   changePassword: (data) => api.post('/auth/change-password', data),
   validateToken: () => api.get('/auth/validate'),
+  me: () => api.get('/auth/me'),
+};
+
+export const rolePermissionAPI = {
+  getMatrix: () => api.get('/admin/roles-permissions'),
+  updateRole: (role, permissions) => api.put(`/admin/roles-permissions/${role}`, { permissions }),
 };
 
 export const userAdminAPI = {

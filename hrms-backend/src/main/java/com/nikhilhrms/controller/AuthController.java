@@ -49,5 +49,11 @@ public class AuthController {
     public ResponseEntity<ApiResponse<String>> validateToken() {
         return ResponseEntity.ok(new ApiResponse<>(true, "Token is valid", ""));
     }
+
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<com.nikhilhrms.dto.UserDTO>> currentUser(Authentication authentication) {
+        return ResponseEntity.ok(new ApiResponse<>(true, "Current user retrieved", authService.currentUser(authentication.getName())));
+    }
 }
 

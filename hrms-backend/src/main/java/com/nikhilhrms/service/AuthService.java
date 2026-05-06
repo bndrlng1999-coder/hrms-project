@@ -12,7 +12,6 @@ import com.nikhilhrms.repository.DepartmentRepository;
 import com.nikhilhrms.repository.EmployeeRepository;
 import com.nikhilhrms.repository.UserRepository;
 import com.nikhilhrms.security.JwtProvider;
-import com.nikhilhrms.security.PermissionRegistry;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -40,6 +39,9 @@ public class AuthService {
 
     @Autowired
     private UserManagementService userManagementService;
+
+    @Autowired
+    private RolePermissionService rolePermissionService;
 
     public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
@@ -69,7 +71,7 @@ public class AuthService {
         userDTO.setAccountStatus(user.getAccountStatus());
         userDTO.setVerified(user.getVerified());
         userDTO.setFirstLogin(user.getFirstLogin());
-        userDTO.setPermissions(PermissionRegistry.permissionsFor(user.getRole()));
+        userDTO.setPermissions(rolePermissionService.permissionsFor(user.getRole()));
 
         String message = user.getFirstLogin() ? 
             "Login successful. Please change your password on first login." : 
@@ -153,9 +155,21 @@ public class AuthService {
         // Return token
         String token = jwtProvider.generateToken(user.getEmail(), user.getRole().toString());
         UserDTO userDTO = new UserDTO(user.getId(), user.getEmail(), user.getRole(), user.getIsActive());
-        userDTO.setPermissions(PermissionRegistry.permissionsFor(user.getRole()));
+        userDTO.setPermissions(rolePermissionService.permissionsFor(user.getRole()));
 
         return new LoginResponse(token, userDTO, "Registration successful");
         */
+    }
+
+    public UserDTO currentUser(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        UserDTO userDTO = new UserDTO(user.getId(), user.getEmail(), user.getRole(), user.getIsActive());
+        userDTO.setAccountStatus(user.getAccountStatus());
+        userDTO.setVerified(user.getVerified());
+        userDTO.setFirstLogin(user.getFirstLogin());
+        userDTO.setLastLogin(user.getLastLogin());
+        userDTO.setPermissions(rolePermissionService.permissionsFor(user.getRole()));
+        return userDTO;
     }
 }

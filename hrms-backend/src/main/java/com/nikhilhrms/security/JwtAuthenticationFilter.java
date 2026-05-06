@@ -1,6 +1,7 @@
 package com.nikhilhrms.security;
 
 import com.nikhilhrms.entity.User;
+import com.nikhilhrms.service.RolePermissionService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,6 +21,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Autowired
     private JwtProvider jwtProvider;
+
+    @Autowired
+    private RolePermissionService rolePermissionService;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -49,7 +53,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 List<SimpleGrantedAuthority> authorities = new ArrayList<>();
                 authorities.add(new SimpleGrantedAuthority("ROLE_" + role));
 
-                for (String permission : PermissionRegistry.permissionsFor(User.Role.valueOf(role))) {
+                for (String permission : rolePermissionService.permissionsFor(User.Role.valueOf(role))) {
                     authorities.add(new SimpleGrantedAuthority(permission));
                 }
 

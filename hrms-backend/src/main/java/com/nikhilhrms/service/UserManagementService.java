@@ -8,7 +8,6 @@ import com.nikhilhrms.entity.User;
 import com.nikhilhrms.repository.DepartmentRepository;
 import com.nikhilhrms.repository.EmployeeRepository;
 import com.nikhilhrms.repository.UserRepository;
-import com.nikhilhrms.security.PermissionRegistry;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -37,6 +36,9 @@ public class UserManagementService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private RolePermissionService rolePermissionService;
 
     /**
      * Get all users
@@ -244,7 +246,7 @@ public class UserManagementService {
         dto.setVerified(user.getVerified());
         dto.setFirstLogin(user.getFirstLogin());
         dto.setLastLogin(user.getLastLogin());
-        dto.setPermissions(PermissionRegistry.permissionsFor(user.getRole()));
+        dto.setPermissions(rolePermissionService.permissionsFor(user.getRole()));
         employeeRepository.findByUserId(user.getId()).ifPresent(employee -> dto.setEmployeeCode(employee.getEmployeeCode()));
         return dto;
     }

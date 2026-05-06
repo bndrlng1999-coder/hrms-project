@@ -20,6 +20,19 @@ export const AuthProvider = ({ children }) => {
           localStorage.removeItem('user');
         } else {
           setUser(parsedUser);
+          authAPI.me()
+            .then((response) => {
+              const freshUser = response.data.data;
+              localStorage.setItem('user', JSON.stringify(freshUser));
+              setUser(freshUser);
+            })
+            .catch(() => {
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+              setUser(null);
+            })
+            .finally(() => setLoading(false));
+          return;
         }
       } catch {
         localStorage.removeItem('token');
@@ -56,8 +69,38 @@ export const AuthProvider = ({ children }) => {
     setError(null);
   };
 
+  const refreshUser = async () => {
+    const response = await authAPI.me();
+    const freshUser = response.data.data;
+    localStorage.setItem('user', JSON.stringify(freshUser));
+    setUser(freshUser);
+    return freshUser;
+  };
+
+  useEffect(() => {
+    if (!user) return undefined;
+
+    const refreshSilently = () => {
+      authAPI.me()
+        .then((response) => {
+          const freshUser = response.data.data;
+          localStorage.setItem('user', JSON.stringify(freshUser));
+          setUser(freshUser);
+        })
+        .catch(() => {});
+    };
+
+    window.addEventListener('focus', refreshSilently);
+    const intervalId = window.setInterval(refreshSilently, 60000);
+
+    return () => {
+      window.removeEventListener('focus', refreshSilently);
+      window.clearInterval(intervalId);
+    };
+  }, [user?.id]);
+
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, error, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

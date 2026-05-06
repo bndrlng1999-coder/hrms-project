@@ -147,6 +147,14 @@ public final class PermissionRegistry {
         return ROLE_PERMISSIONS.getOrDefault(role, Collections.emptySet());
     }
 
+    public static Set<String> allPermissions() {
+        return ALL_PERMISSIONS;
+    }
+
+    public static Set<String> defaultPermissionsFor(User.Role role) {
+        return permissionsFor(role);
+    }
+
     private static Set<String> employeeTaskPermissions() {
         return Set.of(
                 EMPLOYEE_VIEW_SELF, ATTENDANCE_VIEW, LEAVE_APPLY, PAYROLL_VIEW,
