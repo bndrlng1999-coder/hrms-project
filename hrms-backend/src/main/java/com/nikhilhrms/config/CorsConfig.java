@@ -14,7 +14,7 @@ public class CorsConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins("https://hrms-project-eight-bice.vercel.app")
+                        .allowedOriginPatterns("*")
                         .allowedMethods("*")
                         .allowedHeaders("*")
                         .allowCredentials(true);
