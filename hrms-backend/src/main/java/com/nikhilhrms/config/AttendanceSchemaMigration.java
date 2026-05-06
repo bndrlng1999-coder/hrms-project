@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 
 import java.sql.Connection;
 
-@Component
+//@Component
 public class AttendanceSchemaMigration implements CommandLineRunner {
 
     private final JdbcTemplate jdbcTemplate;

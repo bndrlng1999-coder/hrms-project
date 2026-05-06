@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.util.List;
 
-@Component
+//@Component
 public class DemoUserSeedData implements CommandLineRunner {
 
     private final UserRepository userRepository;

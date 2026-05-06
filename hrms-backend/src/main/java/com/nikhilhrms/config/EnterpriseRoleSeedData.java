@@ -16,7 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.time.LocalDate;
 import java.util.Locale;
 
-@Configuration
+//@Configuration
 public class EnterpriseRoleSeedData {
 
     @Bean
