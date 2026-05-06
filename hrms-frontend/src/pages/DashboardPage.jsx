@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { dashboardAPI, employeeAPI } from '../services/api';
 import { useNotification } from '../hooks/useNotification';
 import { useAuth } from '../context/AuthContext';
@@ -43,55 +44,11 @@ const DashboardPage = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-        <div className="metric-card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-500 text-sm font-medium">Total Employees</p>
-              <p className="text-3xl font-bold text-primary-600">{stats?.totalEmployees || 0}</p>
-            </div>
-            <span className="metric-icon">EM</span>
-          </div>
-        </div>
-
-        <div className="metric-card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-500 text-sm font-medium">Present Today</p>
-              <p className="text-3xl font-bold text-green-600">{stats?.presentToday || 0}</p>
-            </div>
-            <span className="metric-icon metric-icon-success">IN</span>
-          </div>
-        </div>
-
-        <div className="metric-card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-500 text-sm font-medium">Absent Today</p>
-              <p className="text-3xl font-bold text-red-600">{stats?.absentToday || 0}</p>
-            </div>
-            <span className="metric-icon metric-icon-danger">AB</span>
-          </div>
-        </div>
-
-        <div className="metric-card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-500 text-sm font-medium">Pending Leaves</p>
-              <p className="text-3xl font-bold text-yellow-600">{stats?.pendingLeaveRequests || 0}</p>
-            </div>
-            <span className="metric-icon metric-icon-warning">LV</span>
-          </div>
-        </div>
-
-        <div className="metric-card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-500 text-sm font-medium">Payroll</p>
-              <p className="text-3xl font-bold text-blue-600">0</p>
-            </div>
-            <span className="metric-icon metric-icon-accent">PY</span>
-          </div>
-        </div>
+        <DashboardMetric to="/employees" label="Total Employees" value={stats?.totalEmployees || 0} icon="EM" valueClass="text-primary-600" />
+        <DashboardMetric to="/attendance" label="Present Today" value={stats?.presentToday || 0} icon="IN" iconClass="metric-icon-success" valueClass="text-green-600" />
+        <DashboardMetric to="/attendance" label="Absent Today" value={stats?.absentToday || 0} icon="AB" iconClass="metric-icon-danger" valueClass="text-red-600" />
+        <DashboardMetric to="/leave" label="Pending Leaves" value={stats?.pendingLeaveRequests || 0} icon="LV" iconClass="metric-icon-warning" valueClass="text-yellow-600" />
+        <DashboardMetric to="/finance/payroll" label="Payroll" value="Open" icon="PY" iconClass="metric-icon-accent" valueClass="text-blue-600" />
       </div>
 
       <div className="card">
@@ -132,5 +89,17 @@ const DashboardPage = () => {
     </div>
   );
 };
+
+const DashboardMetric = ({ to, label, value, icon, iconClass = '', valueClass = 'text-primary-600' }) => (
+  <Link to={to} className="metric-card block">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-gray-500 text-sm font-medium">{label}</p>
+        <p className={`text-3xl font-bold ${valueClass}`}>{value}</p>
+      </div>
+      <span className={`metric-icon ${iconClass}`}>{icon}</span>
+    </div>
+  </Link>
+);
 
 export default DashboardPage;

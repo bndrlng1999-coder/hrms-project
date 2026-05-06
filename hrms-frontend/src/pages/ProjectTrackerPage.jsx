@@ -45,7 +45,7 @@ const emptySprint = {
   status: 'PLANNED',
 };
 
-const ProjectTrackerPage = ({ view }) => {
+const ProjectTrackerPage = ({ view, startCreateProject = false }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -78,6 +78,12 @@ const ProjectTrackerPage = ({ view }) => {
   useEffect(() => {
     loadBaseData();
   }, []);
+
+  useEffect(() => {
+    if (startCreateProject) {
+      setShowProjectForm(true);
+    }
+  }, [startCreateProject]);
 
   useEffect(() => {
     if (view === 'issue-detail' && id) {
@@ -132,7 +138,7 @@ const ProjectTrackerPage = ({ view }) => {
       setActivity(activityRes.data.data || []);
     } catch (error) {
       showError('Issue not found');
-      navigate('/project-tracker/issues');
+      navigate('/projects/issues');
     }
   };
 
@@ -393,13 +399,13 @@ const Header = ({ view, notifications, onNewIssue }) => (
 
 const TrackerTabs = () => {
   const tabs = [
-    ['/project-tracker/dashboard', 'Dashboard'],
-    ['/project-tracker/projects', 'Projects'],
-    ['/project-tracker/board', 'Board'],
-    ['/project-tracker/backlog', 'Backlog'],
-    ['/project-tracker/sprints', 'Sprints'],
-    ['/project-tracker/issues', 'Issues'],
-    ['/project-tracker/reports', 'Reports'],
+    ['/projects/dashboard', 'Dashboard'],
+    ['/projects', 'Projects'],
+    ['/projects/board', 'Board'],
+    ['/projects/backlog', 'Backlog'],
+    ['/projects/sprints', 'Sprints'],
+    ['/projects/issues', 'Issues'],
+    ['/projects/reports', 'Reports'],
   ];
   return (
     <div className="mb-6 flex flex-wrap gap-2">
@@ -464,7 +470,7 @@ const Projects = ({ projects, canManage, onCreate }) => (
     </div>
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       {projects.map((project) => (
-        <Link key={project.id} to={`/project-tracker/projects/${project.id}`} className="rounded-lg border border-gray-200 p-4 hover:border-primary-300">
+        <Link key={project.id} to={`/projects/${project.id}`} className="rounded-lg border border-gray-200 p-4 hover:border-primary-300">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-bold text-primary-600">{project.projectKey}</p>
@@ -491,7 +497,7 @@ const ProjectDetail = ({ project, issues, sprints }) => {
   return (
     <div className="space-y-6">
       <div className="card">
-        <Link to="/project-tracker/projects" className="text-sm font-semibold text-primary-600 hover:text-primary-700">Back to projects</Link>
+        <Link to="/projects" className="text-sm font-semibold text-primary-600 hover:text-primary-700">Back to projects</Link>
         <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-sm font-bold text-primary-600">{project.projectKey}</p>
@@ -630,7 +636,7 @@ const IssuesTable = ({ issues }) => (
         <tbody>
           {issues.map((issue) => (
             <tr key={issue.id} className="table-row">
-              <td className="table-cell font-semibold"><Link to={`/project-tracker/issues/${issue.id}`}>{issue.issueKey}</Link></td>
+              <td className="table-cell font-semibold"><Link to={`/projects/issues/${issue.id}`}>{issue.issueKey}</Link></td>
               <td className="table-cell">{issue.title}</td>
               <td className="table-cell">{issue.issueType}</td>
               <td className="table-cell"><Badge value={issue.priority} /></td>
@@ -761,7 +767,7 @@ const Filters = ({ filters, setFilters, projects, employees }) => (
 
 const IssueCard = ({ issue, draggable }) => (
   <Link
-    to={`/project-tracker/issues/${issue.id}`}
+    to={`/projects/issues/${issue.id}`}
     draggable={draggable}
     onDragStart={(e) => e.dataTransfer.setData('issueId', issue.id)}
     className="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-primary-300"
@@ -781,7 +787,7 @@ const IssueCard = ({ issue, draggable }) => (
 
 const IssueRow = ({ issue }) => (
   <div className="min-w-0">
-    <Link to={`/project-tracker/issues/${issue.id}`} className="font-semibold text-gray-900 hover:text-primary-700">{issue.issueKey}: {issue.title}</Link>
+    <Link to={`/projects/issues/${issue.id}`} className="font-semibold text-gray-900 hover:text-primary-700">{issue.issueKey}: {issue.title}</Link>
     <p className="text-sm text-gray-500">{issue.projectKey} - {issue.assigneeName || 'Unassigned'} - {issue.status}</p>
   </div>
 );
@@ -945,3 +951,4 @@ const titleFor = (view) => ({
 }[view] || 'Project Tracker');
 
 export default ProjectTrackerPage;
+
