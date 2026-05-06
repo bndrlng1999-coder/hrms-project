@@ -1,9 +1,9 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { hasPermission } from './authorization';
+import { canAccess } from './authorization';
 
-const ProtectedRoute = ({ children, permissions = [] }) => {
+const ProtectedRoute = ({ children, permissions = [], roles = [] }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
 
@@ -19,7 +19,7 @@ const ProtectedRoute = ({ children, permissions = [] }) => {
     return <Navigate to="/change-password" replace />;
   }
 
-  if (!hasPermission(user, permissions)) {
+  if (!canAccess(user, { requiredRoles: roles, requiredPermissions: permissions })) {
     return <Navigate to="/unauthorized" replace />;
   }
 

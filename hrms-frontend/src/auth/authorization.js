@@ -278,3 +278,41 @@ export const hasPermission = (user, requiredPermissions = []) => {
   const permissions = new Set(getUserPermissions(user));
   return requiredPermissions.some((permission) => permissions.has(permission));
 };
+
+export const hasRole = (user, requiredRoles = []) => {
+  if (!requiredRoles.length) return true;
+  return Boolean(user?.role && requiredRoles.includes(user.role));
+};
+
+export const canAccess = (user, { requiredRoles = [], requiredPermissions = [] } = {}) => {
+  if (!requiredRoles.length && !requiredPermissions.length) return true;
+  if (requiredRoles.length && !hasRole(user, requiredRoles)) return false;
+  if (requiredPermissions.length && !hasPermission(user, requiredPermissions)) return false;
+  return true;
+};
+
+export const filterNavigationItems = (items, user, parentCanAccess = true) => {
+  return items.reduce((visibleItems, item) => {
+    const itemCanAccess = canAccess(user, item);
+    const canShowAtThisLevel = parentCanAccess && itemCanAccess;
+
+    if (item.children?.length) {
+      const visibleChildren = item.children.filter((child) => {
+        const childCanAccess = canAccess(user, child);
+        return (canShowAtThisLevel && childCanAccess) || (child.allowOutsideParentAccess && childCanAccess);
+      });
+
+      if (canShowAtThisLevel || visibleChildren.length) {
+        visibleItems.push({ ...item, children: visibleChildren });
+      }
+
+      return visibleItems;
+    }
+
+    if (canShowAtThisLevel) {
+      visibleItems.push(item);
+    }
+
+    return visibleItems;
+  }, []);
+};

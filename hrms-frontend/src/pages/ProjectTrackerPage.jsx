@@ -488,8 +488,6 @@ const ProjectDetail = ({ project, issues, sprints }) => {
     return <Empty text="Project not found" />;
   }
 
-  const completed = issues.filter((issue) => issue.status === 'DONE').length;
-
   return (
     <div className="space-y-6">
       <div className="card">

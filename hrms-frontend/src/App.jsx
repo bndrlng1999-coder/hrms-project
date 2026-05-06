@@ -31,6 +31,36 @@ import UserAdminPage from './pages/UserAdminPage';
 import Sidebar from './layout/Sidebar';
 import Navbar from './layout/Navbar';
 import UnauthorizedPage from './shared/UnauthorizedPage';
+import ComingSoonPage from './shared/ComingSoonPage';
+import { ADMIN_ROLES, CRM_ROLES, FINANCE_ROLES, PEOPLE_HR_ROLES, PROJECT_ROLES } from './navigation/sidebarMenu';
+
+const peoplePlaceholderRoutes = [
+  { path: '/employees/new', title: 'Add Employee', permissions: [PERMISSIONS.EMPLOYEE_CREATE, PERMISSIONS.USER_CREATE] },
+  { path: '/interns', title: 'Interns', permissions: [PERMISSIONS.INTERN_CREATE, PERMISSIONS.EMPLOYEE_VIEW_ALL] },
+];
+
+const crmPlaceholderRoutes = [
+  { path: '/crm/leads', title: 'Leads', permissions: [PERMISSIONS.CRM_VIEW, PERMISSIONS.CRM_MANAGE] },
+  { path: '/crm/clients', title: 'Clients', permissions: [PERMISSIONS.CRM_VIEW, PERMISSIONS.CRM_MANAGE] },
+  { path: '/crm/deals', title: 'Deals', permissions: [PERMISSIONS.CRM_VIEW, PERMISSIONS.CRM_MANAGE] },
+  { path: '/crm/follow-ups', title: 'Follow-ups', permissions: [PERMISSIONS.CRM_VIEW, PERMISSIONS.CRM_MANAGE] },
+  { path: '/crm/proposals', title: 'Proposals', permissions: [PERMISSIONS.CRM_VIEW, PERMISSIONS.CRM_MANAGE, PERMISSIONS.CRM_APPROVE] },
+  { path: '/crm/sla-tracking', title: 'SLA Tracking', permissions: [PERMISSIONS.CRM_VIEW, PERMISSIONS.CRM_MANAGE, PERMISSIONS.CRM_APPROVE] },
+  { path: '/crm/reports', title: 'CRM Reports', permissions: [PERMISSIONS.CRM_VIEW, PERMISSIONS.CRM_MANAGE, PERMISSIONS.CRM_APPROVE, PERMISSIONS.REPORT_VIEW] },
+];
+
+const financePlaceholderRoutes = [
+  { path: '/finance/payroll', title: 'Payroll', permissions: [PERMISSIONS.PAYROLL_VIEW, PERMISSIONS.PAYROLL_MANAGE] },
+  { path: '/finance/salary-structure', title: 'Salary Structure', permissions: [PERMISSIONS.PAYROLL_VIEW, PERMISSIONS.PAYROLL_MANAGE] },
+  { path: '/finance/generate-payslip', title: 'Generate Payslip', permissions: [PERMISSIONS.PAYSLIP_GENERATE, PERMISSIONS.PAYROLL_MANAGE] },
+  { path: '/finance/reports', title: 'Payroll Reports', permissions: [PERMISSIONS.PAYROLL_VIEW, PERMISSIONS.PAYROLL_MANAGE, PERMISSIONS.REPORT_VIEW] },
+];
+
+const adminPlaceholderRoutes = [
+  { path: '/admin/roles-permissions', title: 'Roles & Permissions', permissions: [PERMISSIONS.ROLE_ASSIGN, PERMISSIONS.SETTINGS_MANAGE] },
+  { path: '/admin/audit-logs', title: 'Audit Logs', permissions: [PERMISSIONS.AUDIT_VIEW] },
+  { path: '/admin/system-settings', title: 'System Settings', permissions: [PERMISSIONS.SETTINGS_MANAGE] },
+];
 
 export default function App() {
   const { user } = useAuth();
@@ -58,6 +88,18 @@ export default function App() {
                   <DashboardPage />
                 </ProtectedRoute>
               } />
+
+              <Route path="/profile" element={
+                <ProtectedRoute>
+                  <ComingSoonPage title="My Profile" category="Dashboard" />
+                </ProtectedRoute>
+              } />
+
+              <Route path="/notifications" element={
+                <ProtectedRoute>
+                  <ComingSoonPage title="Notifications" category="Dashboard" />
+                </ProtectedRoute>
+              } />
               
               <Route path="/employees" element={
                 <ProtectedRoute permissions={[PERMISSIONS.EMPLOYEE_VIEW_ALL]}>
@@ -65,8 +107,16 @@ export default function App() {
                 </ProtectedRoute>
               } />
 
+              {peoplePlaceholderRoutes.map(({ path, title, permissions }) => (
+                <Route key={path} path={path} element={
+                  <ProtectedRoute roles={PEOPLE_HR_ROLES} permissions={permissions}>
+                    <ComingSoonPage title={title} category="People & HR" />
+                  </ProtectedRoute>
+                } />
+              ))}
+
               <Route path="/admin/users" element={
-                <ProtectedRoute>
+                <ProtectedRoute roles={ADMIN_ROLES} permissions={[PERMISSIONS.USER_VIEW, PERMISSIONS.USER_CREATE, PERMISSIONS.USER_UPDATE]}>
                   <UserAdminPage />
                 </ProtectedRoute>
               } />
@@ -215,6 +265,22 @@ export default function App() {
                 </ProtectedRoute>
               } />
 
+              {crmPlaceholderRoutes.map(({ path, title, permissions }) => (
+                <Route key={path} path={path} element={
+                  <ProtectedRoute roles={CRM_ROLES} permissions={permissions}>
+                    <ComingSoonPage title={title} category="CRM" />
+                  </ProtectedRoute>
+                } />
+              ))}
+
+              {financePlaceholderRoutes.map(({ path, title, permissions }) => (
+                <Route key={path} path={path} element={
+                  <ProtectedRoute roles={FINANCE_ROLES} permissions={permissions}>
+                    <ComingSoonPage title={title} category="Finance" />
+                  </ProtectedRoute>
+                } />
+              ))}
+
               <Route path="/project-tracker" element={
                 <ProtectedRoute>
                   <Navigate to="/project-tracker/dashboard" replace />
@@ -236,6 +302,12 @@ export default function App() {
               <Route path="/project-tracker/projects/:id" element={
                 <ProtectedRoute permissions={[PERMISSIONS.PROJECT_MANAGE, PERMISSIONS.PROJECT_CREATE, PERMISSIONS.PROJECT_UPDATE]}>
                   <ProjectTrackerPage view="project-detail" />
+                </ProtectedRoute>
+              } />
+
+              <Route path="/project-tracker/create" element={
+                <ProtectedRoute roles={PROJECT_ROLES} permissions={[PERMISSIONS.PROJECT_CREATE, PERMISSIONS.PROJECT_MANAGE]}>
+                  <ComingSoonPage title="Create Project" category="Projects" description="Project creation already exists inside the Projects workspace. This route is reserved for a dedicated create flow." />
                 </ProtectedRoute>
               } />
 
@@ -274,6 +346,14 @@ export default function App() {
                   <ProjectTrackerPage view="reports" />
                 </ProtectedRoute>
               } />
+
+              {adminPlaceholderRoutes.map(({ path, title, permissions }) => (
+                <Route key={path} path={path} element={
+                  <ProtectedRoute roles={ADMIN_ROLES} permissions={permissions}>
+                    <ComingSoonPage title={title} category="Admin & Settings" />
+                  </ProtectedRoute>
+                } />
+              ))}
 
               <Route path="/unauthorized" element={
                 <ProtectedRoute>
