@@ -9,6 +9,7 @@ const HelpdeskPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [replyingId, setReplyingId] = useState(null);
   const [replyText, setReplyText] = useState('');
+  const [replyStatus, setReplyStatus] = useState('IN_PROGRESS');
   const [formData, setFormData] = useState({
     title: '',
     category: 'PAYROLL',
@@ -35,10 +36,11 @@ const HelpdeskPage = () => {
     if (!replyText.trim() || submitting) return;
     try {
       setSubmitting(true);
-      await helpdeskAPI.reply(ticket.id, { reply: replyText, status: 'REPLIED' });
-      setTickets((current) => current.map((item) => item.id === ticket.id ? { ...item, status: 'REPLIED' } : item));
+      const res = await helpdeskAPI.reply(ticket.id, { reply: replyText, status: replyStatus });
+      setTickets((current) => current.map((item) => item.id === ticket.id ? res.data.data : item));
       setReplyingId(null);
       setReplyText('');
+      setReplyStatus('IN_PROGRESS');
       showSuccess('Reply sent');
     } catch (error) {
       showError(error.response?.data?.message || 'Failed to reply to ticket');
@@ -65,7 +67,17 @@ const HelpdeskPage = () => {
 
   return (
     <div className="page-shell">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Helpdesk</h1>
+      <div className="mb-8 flex flex-col gap-2">
+        <p className="section-eyebrow">Support Operations</p>
+        <h1 className="text-3xl font-bold text-slate-950">Helpdesk</h1>
+        <p className="text-sm text-slate-500">Create, track, reply, and resolve internal support tickets.</p>
+      </div>
+
+      <div className="mb-6 grid gap-4 md:grid-cols-3">
+        <StatusMetric label="Open" value={tickets.filter((ticket) => ticket.status === 'OPEN').length} />
+        <StatusMetric label="In progress" value={tickets.filter((ticket) => ticket.status === 'IN_PROGRESS').length} />
+        <StatusMetric label="Resolved" value={tickets.filter((ticket) => ticket.status === 'RESOLVED').length} />
+      </div>
 
       <div className="card">
         <h2 className="text-xl font-bold mb-4">Create Ticket</h2>
@@ -118,14 +130,16 @@ const HelpdeskPage = () => {
         ) : (
           <div className="space-y-3">
             {tickets.map((ticket) => (
-              <div key={ticket.id || ticket.ticketNumber} className="border border-gray-200 rounded-lg p-4">
+              <div key={ticket.id || ticket.ticketNumber} className="rounded-lg border border-slate-200 p-4 transition hover:border-primary-200 hover:bg-primary-50/30">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-semibold text-gray-900">{ticket.title}</h3>
-                    <p className="text-sm text-gray-500">{ticket.ticketNumber}</p>
+                    <p className="text-sm text-gray-500">{ticket.ticketNumber} - {ticket.category}</p>
                   </div>
-                  <span className="badge badge-warning">{ticket.status}</span>
+                  <span className={`badge ${statusBadge(ticket.status)}`}>{String(ticket.status).replaceAll('_', ' ')}</span>
                 </div>
+                <p className="mt-3 text-sm text-slate-600">{ticket.description || 'No description provided.'}</p>
+                {ticket.resolutionNotes && <p className="mt-3 rounded-md bg-slate-50 p-3 text-sm text-slate-600">{ticket.resolutionNotes}</p>}
                 {canReply && (
                   <div className="mt-4">
                     {replyingId === ticket.id ? (
@@ -136,12 +150,17 @@ const HelpdeskPage = () => {
                           onChange={(e) => setReplyText(e.target.value)}
                           placeholder="Write a reply"
                         />
+                        <select className="input-field max-w-xs" value={replyStatus} onChange={(e) => setReplyStatus(e.target.value)}>
+                          <option value="IN_PROGRESS">In progress</option>
+                          <option value="RESOLVED">Resolved</option>
+                          <option value="OPEN">Reopen</option>
+                        </select>
                         <div className="flex gap-2">
                           <button type="button" className="btn btn-primary" disabled={submitting || !replyText.trim()} onClick={() => submitReply(ticket)}>
                             {submitting ? <span className="btn-spinner" /> : null}
                             Send Reply
                           </button>
-                          <button type="button" className="btn btn-secondary" onClick={() => { setReplyingId(null); setReplyText(''); }}>Cancel</button>
+                          <button type="button" className="btn btn-secondary" onClick={() => { setReplyingId(null); setReplyText(''); setReplyStatus('IN_PROGRESS'); }}>Cancel</button>
                         </div>
                       </div>
                     ) : (
@@ -159,5 +178,18 @@ const HelpdeskPage = () => {
     </div>
   );
 };
+
+const StatusMetric = ({ label, value }) => (
+  <div className="metric-card">
+    <p className="text-xs font-black uppercase tracking-wide text-slate-500">{label}</p>
+    <p className="mt-2 text-3xl font-black text-slate-950">{value}</p>
+  </div>
+);
+
+const statusBadge = (status) => ({
+  OPEN: 'badge-warning',
+  IN_PROGRESS: 'badge-warning',
+  RESOLVED: 'badge-success',
+}[status] || 'badge-warning');
 
 export default HelpdeskPage;

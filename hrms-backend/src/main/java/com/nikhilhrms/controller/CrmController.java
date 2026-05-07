@@ -12,7 +12,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/crm")
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"})
 @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','CEO','CTO')")
 public class CrmController {
 

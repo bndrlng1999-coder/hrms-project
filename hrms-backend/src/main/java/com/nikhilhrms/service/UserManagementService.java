@@ -87,30 +87,28 @@ public class UserManagementService {
         user.setFirstLogin(true);
         user = userRepository.save(user);
 
-        String employeeCode = null;
-        // Create Employee record if department is provided
-        if (request.getDepartmentId() != null) {
-            Employee employee = new Employee();
-            employee.setUser(user);
-            employee.setFirstName(request.getFirstName());
-            employee.setLastName(request.getLastName());
-            employee.setDesignation(request.getDesignation());
-            employeeCode = generateEmployeeCode();
-            employee.setEmployeeCode(employeeCode);
+        Employee employee = new Employee();
+        employee.setUser(user);
+        employee.setFirstName(request.getFirstName());
+        employee.setLastName(request.getLastName());
+        employee.setDesignation(request.getDesignation());
+        String employeeCode = generateEmployeeCode();
+        employee.setEmployeeCode(employeeCode);
 
+        if (request.getDepartmentId() != null) {
             Department department = departmentRepository.findById(request.getDepartmentId())
                     .orElseThrow(() -> new RuntimeException("Department not found"));
             employee.setDepartment(department);
-
-            if (request.getReportingManagerId() != null) {
-                Employee reportingManager = employeeRepository.findById(request.getReportingManagerId())
-                        .orElseThrow(() -> new RuntimeException("Reporting manager not found"));
-                employee.setManagerId(reportingManager.getId());
-            }
-
-            employee.setIsActive(true);
-            employeeRepository.save(employee);
         }
+
+        if (request.getReportingManagerId() != null) {
+            Employee reportingManager = employeeRepository.findById(request.getReportingManagerId())
+                    .orElseThrow(() -> new RuntimeException("Reporting manager not found"));
+            employee.setManagerId(reportingManager.getId());
+        }
+
+        employee.setIsActive(true);
+        employeeRepository.save(employee);
 
         UserDTO userDTO = convertToDTO(user);
         userDTO.setEmployeeCode(employeeCode);

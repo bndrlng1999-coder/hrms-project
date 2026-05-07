@@ -67,7 +67,7 @@ const Sidebar = () => {
   const [expandedCategory, setExpandedCategory] = useState(() => localStorage.getItem(storageKey) || activeCategory?.id || 'dashboard');
 
   useEffect(() => {
-    if (!expandedCategory && activeCategory?.id) {
+    if (activeCategory?.id && expandedCategory !== activeCategory.id) {
       setExpandedCategory(activeCategory.id);
     }
   }, [activeCategory?.id, expandedCategory]);
@@ -87,10 +87,14 @@ const Sidebar = () => {
   const sidebarContent = (
     <div className="flex h-full flex-col">
       <div className="border-b border-slate-200 px-4 py-4">
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-          <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Signed in</div>
-          <div className="mt-2 truncate text-sm font-semibold text-slate-950">{user?.email}</div>
-          <div className="mt-1 truncate text-xs font-medium text-primary-700">{user?.role}</div>
+        <div className="overflow-hidden rounded-lg border border-slate-200 bg-gradient-to-br from-slate-950 to-primary-900 p-3 text-white shadow-lg shadow-primary-900/20">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-xs font-black ring-1 ring-white/20">{initials(user?.email)}</div>
+            <div className="min-w-0">
+              <div className="truncate text-sm font-black">{user?.email}</div>
+              <div className="mt-1 truncate text-xs font-bold text-cyan-100">{user?.role}</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -104,12 +108,12 @@ const Sidebar = () => {
               <button
                 type="button"
                 onClick={() => toggleCategory(item.id)}
-                className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-bold transition-all duration-200 ${
-                  active ? 'bg-primary-50 text-primary-800 ring-1 ring-primary-100' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
+                className={`sidebar-category-button ${
+                  active ? 'sidebar-category-active' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
                 }`}
               >
                 <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
-                  active ? 'bg-white text-primary-700 shadow-sm' : 'bg-slate-100 text-slate-500'
+                  active ? 'bg-white/20 text-white shadow-sm' : 'bg-slate-100 text-slate-500'
                 }`}>
                   {categoryIcons[item.icon]}
                 </span>
@@ -136,7 +140,7 @@ const Sidebar = () => {
                             setExpandedCategory(item.id);
                             setMobileOpen(false);
                           }}
-                          className={`block rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
+                          className={`sidebar-child-link ${
                             childActive ? 'bg-primary-700 text-white shadow-sm shadow-primary-900/10' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
                           }`}
                         >
@@ -169,7 +173,7 @@ const Sidebar = () => {
         </svg>
       </button>
 
-      <aside className="fixed left-0 top-16 z-30 hidden h-[calc(100vh-4rem)] w-64 border-r border-slate-200 bg-white shadow-xl shadow-slate-900/5 lg:block">
+      <aside className="sidebar-shell">
         {sidebarContent}
       </aside>
 
@@ -209,6 +213,12 @@ const isActivePath = (pathname, item) => {
   if (!item?.path) return false;
   if (item.exact) return pathname === item.path;
   return pathname === item.path || pathname.startsWith(`${item.path}/`);
+};
+
+const initials = (value = '') => {
+  const clean = String(value).replace(/@.*/, '').replace(/[^a-zA-Z0-9]+/g, ' ').trim();
+  if (!clean) return 'TX';
+  return clean.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
 };
 
 export default Sidebar;

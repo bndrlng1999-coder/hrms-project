@@ -1,26 +1,37 @@
 import React, { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useNotification } from '../hooks/useNotification';
+
+const demoCredentials = [
+  ['SUPER_ADMIN', 'superadmin@tanvox.local', 'Admin@12345'],
+  ['ADMIN', 'admin@tanvox.local', 'Admin@12345'],
+  ['HR', 'hr@tanvox.local', 'Hr@12345'],
+  ['FINANCE', 'finance@tanvox.local', 'Finance@12345'],
+];
 
 const LoginPage = () => {
   const [email, setEmail] = useState('superadmin@tanvox.local');
   const [password, setPassword] = useState('Admin@12345');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [localError, setLocalError] = useState('');
   const { login, user } = useAuth();
   const navigate = useNavigate();
-  const { showError, showSuccess } = useNotification();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     if (loading) return;
     setLoading(true);
+    setLocalError('');
     try {
       const result = await login(email, password);
-      showSuccess('Login successful!');
-      navigate(result?.data?.user?.firstLogin ? '/change-password' : '/dashboard');
+      navigate(result?.data?.user?.firstLogin ? '/change-password' : '/dashboard', { replace: true });
     } catch (error) {
-      showError(error.response?.data?.message || 'Login failed');
+      const status = error.response?.status;
+      const message = error.response?.data?.message || error.message;
+      if (status === 401 || status === 403) setLocalError(message || 'Invalid email or password.');
+      else if (status === 502 || status === 503 || status === 504) setLocalError('The HRMS API is waking up or unavailable. Please try again in a moment.');
+      else setLocalError(message || 'Unable to sign in. Please check your network and try again.');
     } finally {
       setLoading(false);
     }
@@ -31,75 +42,120 @@ const LoginPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-surface px-4 py-10">
-      <div className="mx-auto grid min-h-[calc(100vh-5rem)] w-full max-w-6xl items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="hidden lg:block">
-          <div className="mb-8 flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-md bg-primary-900 text-sm font-black text-white">TX</div>
+    <div className="login-stage">
+      <div className="login-orb login-orb-one" />
+      <div className="login-orb login-orb-two" />
+
+      <div className="login-grid">
+        <section className="login-brand-panel">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/15 text-sm font-black text-white ring-1 ring-white/25">TX</div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-950">Tanvox HRMS</h1>
-              <p className="text-sm text-slate-500">Enterprise people operations suite</p>
+              <p className="text-sm font-black uppercase tracking-[0.2em] text-white/65">Tanvox</p>
+              <h1 className="text-3xl font-black text-white">Enterprise Social HRMS</h1>
             </div>
           </div>
-          <div className="grid gap-4">
-            {['People, payroll, attendance, and leave in one secure workspace', 'Permission-aware project tracker and internal mail', 'Executive dashboards with operational visibility'].map((item) => (
-              <div key={item} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-sm font-semibold text-slate-800">{item}</p>
+
+          <div className="mt-12 max-w-xl">
+            <h2 className="text-5xl font-black leading-tight text-white">Where people ops feels alive.</h2>
+            <p className="mt-5 text-base leading-7 text-white/75">
+              A secure HRMS, CRM, project tracker, finance desk, and internal mail platform redesigned around a live company feed.
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-4 md:grid-cols-3">
+            {[
+              ['Live Feed', 'Announcements, tasks, leads, and approvals in one stream.'],
+              ['Role Aware', 'Permissions shape every action and every route.'],
+              ['Enterprise Ready', 'Token-secured API integration with real workflows.'],
+            ].map(([title, text]) => (
+              <div key={title} className="rounded-lg border border-white/15 bg-white/10 p-4 text-white backdrop-blur">
+                <p className="font-black">{title}</p>
+                <p className="mt-2 text-sm leading-6 text-white/70">{text}</p>
               </div>
             ))}
           </div>
         </section>
 
-        <div className="w-full">
-        <div className="rounded-lg border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/80">
+        <section className="login-card">
           <div className="mb-8">
             <p className="section-eyebrow">Secure sign in</p>
-            <h1 className="mt-2 text-3xl font-bold text-slate-950">Welcome back</h1>
-            <p className="mt-2 text-sm text-slate-500">Use your Tanvox account to continue.</p>
+            <h2 className="mt-2 text-3xl font-black text-slate-950">Welcome back</h2>
+            <p className="mt-2 text-sm text-slate-500">Use your Tanvox workspace account to continue.</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Email</label>
+          {localError && (
+            <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+              {localError}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <label className="login-field">
+              <span>Email</span>
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(event) => setEmail(event.target.value)}
                 className="input-field"
-                placeholder="Enter your email"
+                placeholder="name@tanvox.local"
                 required
+                autoComplete="email"
               />
-            </div>
+            </label>
 
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input-field"
-                placeholder="Enter your password"
-                required
-              />
-            </div>
+            <label className="login-field">
+              <span>Password</span>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className="input-field pr-24"
+                  placeholder="Enter your password"
+                  required
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-3 py-1.5 text-xs font-black text-primary-700 transition hover:bg-primary-50"
+                  onClick={() => setShowPassword((current) => !current)}
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </label>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full btn btn-primary disabled:opacity-50"
-            >
-              {loading ? 'Logging in...' : 'Login'}
+            <button type="submit" disabled={loading} className="btn btn-primary h-12 w-full text-base">
+              {loading && <span className="btn-spinner" />}
+              {loading ? 'Signing in...' : 'Enter workspace'}
             </button>
           </form>
 
-          <div className="mt-8 rounded-lg border border-primary-100 bg-primary-50 p-4">
-            <p className="text-sm font-semibold text-primary-900 mb-2">Test Credentials</p>
-            <p className="text-sm text-primary-800">SUPER_ADMIN: superadmin@tanvox.local / Admin@12345</p>
-            <p className="text-sm text-primary-800">ADMIN: admin@tanvox.local / Admin@12345</p>
-            <p className="text-sm text-primary-800">HR: hr@tanvox.local / Hr@12345</p>
+          <div className="mt-8 rounded-lg border border-slate-200 bg-slate-50/80 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm font-black text-slate-950">Demo credentials</p>
+              <span className="rounded-full bg-primary-50 px-3 py-1 text-xs font-black text-primary-700">Seeded</span>
+            </div>
+            <div className="grid gap-2">
+              {demoCredentials.map(([role, demoEmail, demoPassword]) => (
+                <button
+                  key={role}
+                  type="button"
+                  className="flex items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-xs transition hover:border-primary-200 hover:bg-primary-50"
+                  onClick={() => {
+                    setEmail(demoEmail);
+                    setPassword(demoPassword);
+                    setLocalError('');
+                  }}
+                >
+                  <span className="font-black text-slate-800">{role}</span>
+                  <span className="text-slate-500">{demoEmail}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-        </div>
+        </section>
       </div>
     </div>
   );

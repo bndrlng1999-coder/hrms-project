@@ -25,7 +25,7 @@ public class EmployeeService {
     private UserRepository userRepository;
 
     public List<EmployeeDTO> getAllEmployees() {
-        return employeeRepository.findByIsActiveTrue().stream()
+        return employeeRepository.findAll().stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
     }

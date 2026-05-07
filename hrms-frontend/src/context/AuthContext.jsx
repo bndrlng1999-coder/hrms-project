@@ -45,8 +45,12 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       setError(null);
-      const response = await authAPI.login(email, password);
-      const { token, accessToken, user } = response.data.data;
+      const response = await authAPI.login(email.trim(), password);
+      const payload = response.data?.data;
+      if (!payload?.user) {
+        throw new Error(response.data?.message || 'Login response did not include user details');
+      }
+      const { token, accessToken, user } = payload;
       const authToken = token || accessToken;
       if (!authToken) {
         throw new Error('Login response did not include an access token');
@@ -56,7 +60,7 @@ export const AuthProvider = ({ children }) => {
       setUser(user);
       return response.data;
     } catch (err) {
-      const message = err.response?.data?.message || 'Login failed';
+      const message = err.response?.data?.message || err.message || 'Login failed';
       setError(message);
       throw err;
     }

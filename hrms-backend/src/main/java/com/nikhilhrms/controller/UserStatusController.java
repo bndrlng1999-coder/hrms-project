@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/users")
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"})
 @PreAuthorize("hasRole('SUPER_ADMIN')")
 public class UserStatusController {
 

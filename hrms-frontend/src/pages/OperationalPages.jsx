@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../hooks/useNotification';
-import { employeeAPI, payslipAPI, projectTrackerAPI, rolePermissionAPI } from '../services/api';
+import { adminAPI, employeeAPI, notificationAPI, payslipAPI, rolePermissionAPI } from '../services/api';
 import { PERMISSIONS, hasPermission } from '../auth/authorization';
 
 const currency = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
@@ -79,30 +79,46 @@ export const ProfilePage = () => {
 };
 
 export const NotificationsPage = () => {
-  const { showError } = useNotification();
+  const { showError, showSuccess } = useNotification();
   const [rows, setRows] = useState([]);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    projectTrackerAPI.getNotifications()
+  const load = () => {
+    setLoading(true);
+    notificationAPI.getAll()
       .then((res) => setRows(res.data.data || []))
       .catch((error) => showError(error.response?.data?.message || 'Failed to load notifications'))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const markAllRead = async () => {
+    try {
+      const res = await notificationAPI.markAllRead();
+      setRows(res.data.data || []);
+      showSuccess('Notifications marked as read');
+    } catch (error) {
+      showError(error.response?.data?.message || 'Failed to update notifications');
+    }
+  };
 
   const filtered = rows.filter((row) => searchMatch(row, query, ['title', 'message', 'link']));
 
   return (
     <div className="page-shell">
-      <Header eyebrow="Dashboard" title="Notifications" description="Recent workflow and project alerts." />
+      <Header eyebrow="Dashboard" title="Notifications" description="Recent workflow and project alerts." action={<button type="button" className="btn btn-secondary" onClick={markAllRead}>Mark all read</button>} />
       <SearchBar value={query} onChange={setQuery} placeholder="Search notifications..." />
       <div className="card mt-6">
         {loading ? <Empty text="Loading notifications..." /> : filtered.length === 0 ? <Empty text="No notifications found" /> : (
           <div className="space-y-3">
             {filtered.map((item) => (
-              <Link key={item.id} to={item.link || '/dashboard'} className="block rounded-lg border border-slate-200 p-4 hover:border-primary-300 hover:bg-primary-50/40">
-                <div className="font-bold text-slate-950">{item.title}</div>
+              <Link key={item.id} to={item.link || '/dashboard'} className={`block rounded-lg border p-4 transition hover:border-primary-300 hover:bg-primary-50/40 ${item.readFlag ? 'border-slate-200 bg-white' : 'border-primary-200 bg-primary-50/60'}`}>
+                <div className="flex items-center gap-2">
+                  {!item.readFlag && <span className="h-2 w-2 rounded-full bg-primary-600" />}
+                  <div className="font-bold text-slate-950">{item.title}</div>
+                </div>
                 <p className="mt-1 text-sm text-slate-600">{item.message}</p>
                 <p className="mt-2 text-xs font-semibold text-slate-400">{formatDate(item.createdAt)}</p>
               </Link>
@@ -548,14 +564,41 @@ const PermissionSkeleton = () => (
   </div>
 );
 
-export const AuditLogsPage = () => (
-  <div className="page-shell">
-    <Header eyebrow="Admin & Settings" title="Audit Logs" description="Audit events are recorded by the backend, but no read endpoint is currently exposed." />
-    <div className="card">
-      <Empty text="No audit log API endpoint is available in the backend yet." />
+export const AuditLogsPage = () => {
+  const { showError } = useNotification();
+  const [logs, setLogs] = useState([]);
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    adminAPI.getAuditLogs()
+      .then((res) => setLogs(res.data.data || []))
+      .catch((error) => showError(error.response?.data?.message || 'Failed to load audit logs'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = logs.filter((log) => searchMatch(log, query, ['actorEmail', 'module', 'action', 'entityType', 'details']));
+
+  return (
+    <div className="page-shell">
+      <Header eyebrow="Admin & Settings" title="Audit Logs" description="Database-backed activity trail for sensitive operations." />
+      <SearchBar value={query} onChange={setQuery} placeholder="Search audit logs..." />
+      <DataTable
+        loading={loading}
+        emptyText="No audit events found"
+        columns={['Time', 'Actor', 'Module', 'Action', 'Entity', 'Details']}
+        rows={filtered.map((log) => [
+          formatDate(log.createdAt),
+          log.actorEmail || '-',
+          log.module,
+          log.action,
+          log.entityType ? `${log.entityType} #${log.entityId || '-'}` : '-',
+          log.details || '-',
+        ])}
+      />
     </div>
-  </div>
-);
+  );
+};
 
 export const SystemSettingsPage = () => {
   const [settings, setSettings] = useState({ apiBase: import.meta.env.VITE_API_BASE_URL || '/api', environment: import.meta.env.MODE, notifications: true });

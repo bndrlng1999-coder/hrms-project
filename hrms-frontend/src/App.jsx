@@ -31,6 +31,7 @@ import UserAdminPage from './pages/UserAdminPage';
 import Sidebar from './layout/Sidebar';
 import Navbar from './layout/Navbar';
 import UnauthorizedPage from './shared/UnauthorizedPage';
+import ErrorBoundary from './shared/ErrorBoundary';
 import { ADMIN_ROLES, CRM_ROLES, FINANCE_ROLES, PEOPLE_HR_ROLES, PROJECT_ROLES } from './navigation/sidebarMenu';
 import {
   AuditLogsPage,
@@ -54,6 +55,7 @@ export default function App() {
         <div className={isPublic ? '' : 'flex'}>
           {!isPublic && <Sidebar />}
           <main className={isPublic ? 'w-full' : 'flex-1'}>
+            <ErrorBoundary>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
 
@@ -82,6 +84,12 @@ export default function App() {
               } />
               
               <Route path="/employees" element={
+                <ProtectedRoute permissions={[PERMISSIONS.EMPLOYEE_VIEW_ALL]}>
+                  <EmployeePage />
+                </ProtectedRoute>
+              } />
+
+              <Route path="/employees/:id" element={
                 <ProtectedRoute permissions={[PERMISSIONS.EMPLOYEE_VIEW_ALL]}>
                   <EmployeePage />
                 </ProtectedRoute>
@@ -373,6 +381,7 @@ export default function App() {
               
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
             </Routes>
+            </ErrorBoundary>
           </main>
         </div>
       </Router>

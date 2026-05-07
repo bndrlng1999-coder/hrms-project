@@ -22,8 +22,10 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const isLoginRequest = error.config?.url?.includes('/auth/login');
+    if (error.response?.status === 401 && !isLoginRequest) {
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
       window.location.href = '/login';
     }
     return Promise.reject(error);
@@ -139,6 +141,10 @@ export const helpdeskAPI = {
   reply: (id, data) => api.post(`/helpdesk/tickets/${id}/reply`, data),
 };
 
+export const adminAPI = {
+  getAuditLogs: () => api.get('/admin/audit-logs'),
+};
+
 export const documentAPI = {
   getAll: () => api.get('/documents'),
   upload: (data) => api.post('/documents', data),
@@ -170,6 +176,12 @@ export const projectTrackerAPI = {
 
   getReports: () => api.get('/reports/project-tracker'),
   getNotifications: () => api.get('/notifications'),
+};
+
+export const notificationAPI = {
+  getAll: () => api.get('/notifications'),
+  markRead: (id) => api.put(`/notifications/${id}/read`),
+  markAllRead: () => api.put('/notifications/read-all'),
 };
 
 export const approvalAPI = {
@@ -227,5 +239,16 @@ export const internalMailAPI = {
   createMailbox: (employeeId) => api.post(`/internal-mails/mailboxes/${employeeId}`),
   syncMailboxes: () => api.post('/internal-mails/mailboxes/sync'),
 };
+
+export const authService = authAPI;
+export const employeeService = employeeAPI;
+export const attendanceService = attendanceAPI;
+export const leaveService = leaveAPI;
+export const projectService = projectTrackerAPI;
+export const crmService = crmAPI;
+export const financeService = payslipAPI;
+export const mailService = internalMailAPI;
+export const notificationService = notificationAPI;
+export const adminService = adminAPI;
 
 export default api;

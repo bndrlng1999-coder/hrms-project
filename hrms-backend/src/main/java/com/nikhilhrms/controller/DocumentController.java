@@ -9,7 +9,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/documents")
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"})
 public class DocumentController {
 
     @GetMapping

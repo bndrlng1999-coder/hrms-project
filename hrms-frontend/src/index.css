@@ -10,8 +10,12 @@
 
 body {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background-color: #f6f8fb;
+  background:
+    radial-gradient(circle at top left, rgba(37, 111, 219, 0.10), transparent 34rem),
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.08), transparent 28rem),
+    #f6f8fb;
   color: #0f172a;
+  scroll-behavior: smooth;
 }
 
 button,
@@ -30,11 +34,11 @@ textarea {
 }
 
 .btn-primary {
-  @apply btn bg-primary-700 text-white shadow-sm shadow-primary-900/10 hover:bg-primary-800 hover:shadow-md;
+  @apply btn bg-primary-700 text-white shadow-sm shadow-primary-900/10 hover:-translate-y-0.5 hover:bg-primary-800 hover:shadow-lg hover:shadow-primary-900/20;
 }
 
 .btn-secondary {
-  @apply btn border border-slate-200 bg-white text-slate-700 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-800;
+  @apply btn border border-slate-200 bg-white text-slate-700 hover:-translate-y-0.5 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-800;
 }
 
 .btn-danger {
@@ -42,7 +46,7 @@ textarea {
 }
 
 .card {
-  @apply rounded-lg border border-slate-200/80 bg-white p-6 shadow-sm shadow-slate-200/80;
+  @apply rounded-lg border border-slate-200/80 bg-white/95 p-6 shadow-sm shadow-slate-200/80 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-200/80;
 }
 
 .input-field {
@@ -82,11 +86,13 @@ textarea {
 }
 
 .modal {
-  @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
+  @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm;
+  animation: fadeIn 0.18s ease-out;
 }
 
 .modal-content {
-  @apply mx-4 w-full max-w-md rounded-lg bg-white shadow-2xl shadow-slate-950/20;
+  @apply w-full max-w-md rounded-lg bg-white shadow-2xl shadow-slate-950/20;
+  animation: slideUp 0.22s ease-out;
 }
 
 .loader {
@@ -133,7 +139,8 @@ textarea {
 }
 
 .page-shell {
-  @apply min-h-screen bg-surface px-4 pb-10 pt-20 sm:px-6 lg:ml-64 lg:px-8 lg:pt-24;
+  @apply min-h-screen bg-transparent px-4 pb-10 pt-24 sm:px-6 lg:ml-64 lg:px-8;
+  animation: pageIn 0.22s ease-out;
 }
 
 .section-eyebrow {
@@ -141,7 +148,7 @@ textarea {
 }
 
 .metric-card {
-  @apply rounded-lg border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/80 transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200;
+  @apply rounded-lg border border-slate-200 bg-white/95 p-5 shadow-sm shadow-slate-200/80 transition-all duration-300 hover:-translate-y-1 hover:border-primary-200 hover:shadow-xl hover:shadow-slate-200;
 }
 
 .metric-icon {
@@ -162,4 +169,229 @@ textarea {
 
 .metric-icon-accent {
   @apply bg-cyan-50 text-cyan-700 ring-cyan-100;
+}
+
+.skeleton {
+  @apply animate-pulse rounded-md bg-slate-200;
+}
+
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.dark body {
+  background:
+    radial-gradient(circle at top left, rgba(37, 111, 219, 0.18), transparent 34rem),
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.12), transparent 28rem),
+    #0b1120;
+  color: #e5edf8;
+}
+
+.dark nav,
+.dark aside,
+.dark .card,
+.dark .metric-card,
+.dark .modal-content {
+  @apply border-slate-700 bg-slate-900/95 text-slate-100 shadow-slate-950/30;
+}
+
+.dark .input-field {
+  @apply border-slate-700 bg-slate-950 text-slate-100 focus:border-primary-400 focus:ring-primary-900/40;
+}
+
+.dark .table-header {
+  @apply border-slate-700 bg-slate-800;
+}
+
+.dark .table-row {
+  @apply border-slate-800 hover:bg-primary-900/30;
+}
+
+.dark .table-cell,
+.dark .section-eyebrow {
+  @apply text-slate-300;
+}
+
+.dark .btn-secondary {
+  @apply border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800;
+}
+
+.login-stage {
+  @apply relative min-h-screen overflow-hidden bg-slate-950 px-4 py-8;
+}
+
+.login-stage::before {
+  content: "";
+  @apply absolute inset-0 opacity-60;
+  background:
+    linear-gradient(120deg, rgba(21, 63, 148, 0.95), rgba(8, 47, 73, 0.88), rgba(4, 120, 87, 0.72)),
+    radial-gradient(circle at 20% 15%, rgba(255,255,255,0.20), transparent 28rem);
+}
+
+.login-orb {
+  @apply absolute rounded-full blur-3xl;
+}
+
+.login-orb-one {
+  @apply -left-24 top-24 h-80 w-80 bg-cyan-400/30;
+}
+
+.login-orb-two {
+  @apply -right-20 bottom-10 h-96 w-96 bg-emerald-400/25;
+}
+
+.login-grid {
+  @apply relative z-10 mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-7xl items-center gap-8 lg:grid-cols-[1.1fr_0.9fr];
+}
+
+.login-brand-panel {
+  @apply hidden rounded-lg border border-white/10 bg-white/5 p-8 shadow-2xl shadow-slate-950/30 backdrop-blur-xl lg:block;
+}
+
+.login-card {
+  @apply rounded-lg border border-white/70 bg-white/90 p-6 shadow-2xl shadow-slate-950/30 backdrop-blur-xl sm:p-8;
+  animation: slideUp 0.3s ease-out;
+}
+
+.login-field span {
+  @apply mb-2 block text-sm font-black text-slate-700;
+}
+
+.social-dashboard-shell {
+  @apply grid min-h-screen gap-6 bg-transparent px-4 pb-10 pt-24 sm:px-6 lg:ml-64 lg:grid-cols-[minmax(0,1fr)_22rem] lg:px-8;
+  animation: pageIn 0.22s ease-out;
+}
+
+.social-center {
+  @apply min-w-0 space-y-6;
+}
+
+.social-right-rail {
+  @apply hidden space-y-6 xl:block;
+}
+
+.welcome-post {
+  @apply relative overflow-hidden rounded-lg border border-white/25 bg-gradient-to-br from-primary-900 via-cyan-800 to-emerald-700 p-6 shadow-2xl shadow-primary-900/20 md:p-8;
+}
+
+.welcome-post::after {
+  content: "";
+  @apply absolute -right-16 -top-20 h-64 w-64 rounded-full bg-white/10 blur-2xl;
+}
+
+.story-strip {
+  @apply grid gap-4 sm:grid-cols-2 lg:grid-cols-5;
+}
+
+.story-card {
+  @apply flex items-center gap-3 rounded-lg border border-slate-200 bg-white/95 p-4 shadow-sm shadow-slate-200/80 transition-all duration-300 hover:-translate-y-1 hover:border-primary-200 hover:shadow-xl hover:shadow-slate-200;
+}
+
+.story-orb {
+  @apply flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-xs font-black text-white shadow-lg shadow-slate-900/15 ring-4 ring-white;
+}
+
+.feed-toolbar {
+  @apply sticky top-20 z-20 grid gap-3 rounded-lg border border-slate-200 bg-white/85 p-3 shadow-lg shadow-slate-200/70 backdrop-blur-xl md:grid-cols-[minmax(0,1fr)_auto];
+}
+
+.feed-filter {
+  @apply shrink-0 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-600 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-800;
+}
+
+.feed-filter-active {
+  @apply border-primary-700 bg-primary-700 text-white hover:bg-primary-800 hover:text-white;
+}
+
+.social-feed-card {
+  @apply rounded-lg border border-slate-200 bg-white/95 p-5 shadow-sm shadow-slate-200/80 backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-primary-200 hover:shadow-2xl hover:shadow-slate-200/90;
+  animation: feedIn 0.24s ease-out;
+}
+
+.social-widget {
+  @apply rounded-lg border border-slate-200 bg-white/95 p-5 shadow-lg shadow-slate-200/80 backdrop-blur;
+}
+
+.activity-timeline {
+  @apply mt-4 space-y-1;
+}
+
+.timeline-item {
+  @apply relative flex gap-3 rounded-md px-2 py-3 transition hover:bg-primary-50;
+}
+
+.timeline-dot {
+  @apply mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-primary-600 ring-4 ring-primary-50;
+}
+
+.module-banner {
+  @apply block overflow-hidden rounded-lg p-5 shadow-2xl shadow-slate-900/10 transition-all duration-300 hover:-translate-y-1 hover:shadow-slate-900/20;
+}
+
+.floating-action {
+  @apply flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary-700 to-cyan-600 text-3xl font-black text-white shadow-2xl shadow-primary-900/30 transition-all duration-300 hover:-translate-y-1 hover:scale-105;
+}
+
+.social-layout-grid {
+  @apply grid gap-6 xl:grid-cols-[minmax(0,1fr)_21rem];
+}
+
+.profile-card-grid {
+  @apply grid gap-4 sm:grid-cols-2 2xl:grid-cols-3;
+}
+
+.employee-social-card {
+  @apply rounded-lg border border-slate-200 bg-white/95 p-5 shadow-sm shadow-slate-200/80 transition-all duration-300 hover:-translate-y-1 hover:border-primary-200 hover:shadow-xl hover:shadow-slate-200;
+}
+
+.sidebar-shell {
+  @apply fixed left-0 top-16 z-30 hidden h-[calc(100vh-4rem)] w-64 border-r border-slate-200 bg-white/90 shadow-xl shadow-slate-900/5 backdrop-blur-xl lg:block;
+}
+
+.sidebar-category-button {
+  @apply flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-black transition-all duration-200;
+}
+
+.sidebar-category-active {
+  @apply bg-gradient-to-r from-primary-700 to-cyan-600 text-white shadow-lg shadow-primary-900/20;
+}
+
+.sidebar-child-link {
+  @apply block rounded-md px-3 py-2 text-sm font-bold transition-colors;
+}
+
+@keyframes feedIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.dark .login-card,
+.dark .story-card,
+.dark .social-feed-card,
+.dark .social-widget,
+.dark .feed-toolbar,
+.dark .employee-social-card {
+  @apply border-slate-700 bg-slate-900/95 text-slate-100 shadow-slate-950/30;
+}
+
+.dark .feed-filter,
+.dark .story-card,
+.dark .timeline-item,
+.dark .employee-social-card {
+  @apply border-slate-700 bg-slate-900 text-slate-200;
+}
+
+.dark .feed-filter-active {
+  @apply border-primary-500 bg-primary-700 text-white;
 }

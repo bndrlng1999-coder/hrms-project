@@ -285,6 +285,28 @@ public class ProjectTrackerService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
+    public Map<String, Object> markNotificationRead(Long id) {
+        Employee employee = currentEmployee();
+        Notification notification = notificationRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Notification not found"));
+        if (!Objects.equals(notification.getRecipient().getId(), employee.getId())) {
+            throw new RuntimeException("Notification not found");
+        }
+        notification.setReadFlag(true);
+        return notificationDto(notificationRepository.save(notification));
+    }
+
+    @Transactional
+    public List<Map<String, Object>> markAllNotificationsRead() {
+        Employee employee = currentEmployee();
+        List<Notification> notifications = notificationRepository.findByRecipientIdOrderByCreatedAtDesc(employee.getId());
+        notifications.forEach(notification -> notification.setReadFlag(true));
+        return notificationRepository.saveAll(notifications).stream()
+                .map(this::notificationDto)
+                .collect(Collectors.toList());
+    }
+
     private void applyProject(Project project, Map<String, Object> request) {
         project.setName(stringValue(request, "name", project.getName()));
         project.setProjectKey(stringValue(request, "projectKey", project.getProjectKey()));

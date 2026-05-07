@@ -11,7 +11,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/notifications")
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"})
 public class NotificationController {
 
     @Autowired
@@ -20,5 +19,15 @@ public class NotificationController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getNotifications() {
         return ResponseEntity.ok(new ApiResponse<>(true, "Notifications retrieved", projectTrackerService.getNotifications()));
+    }
+
+    @PutMapping("/{id}/read")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> markRead(@PathVariable Long id) {
+        return ResponseEntity.ok(new ApiResponse<>(true, "Notification marked read", projectTrackerService.markNotificationRead(id)));
+    }
+
+    @PutMapping("/read-all")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> markAllRead() {
+        return ResponseEntity.ok(new ApiResponse<>(true, "Notifications marked read", projectTrackerService.markAllNotificationsRead()));
     }
 }
