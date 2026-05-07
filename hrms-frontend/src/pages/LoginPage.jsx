@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -17,22 +17,37 @@ const LoginPage = () => {
   const [localError, setLocalError] = useState('');
   const { login, user } = useAuth();
   const navigate = useNavigate();
+  const loginAbortRef = useRef(null);
+
+  useEffect(() => () => {
+    loginAbortRef.current?.abort();
+  }, []);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (loading) return;
     setLoading(true);
     setLocalError('');
+    loginAbortRef.current?.abort();
+    const controller = new AbortController();
+    loginAbortRef.current = controller;
     try {
-      const result = await login(email, password);
+      const result = await login(email, password, { signal: controller.signal });
       navigate(result?.data?.user?.firstLogin ? '/change-password' : '/dashboard', { replace: true });
     } catch (error) {
+      if (error.code === 'ERR_CANCELED') {
+        setLocalError('Login request was cancelled. Please try again.');
+        return;
+      }
       const status = error.response?.status;
-      const message = error.response?.data?.message || error.message;
+      const message = error.userMessage || error.response?.data?.message || error.message;
       if (status === 401 || status === 403) setLocalError(message || 'Invalid email or password.');
       else if (status === 502 || status === 503 || status === 504) setLocalError('The HRMS API is waking up or unavailable. Please try again in a moment.');
       else setLocalError(message || 'Unable to sign in. Please check your network and try again.');
     } finally {
+      if (loginAbortRef.current === controller) {
+        loginAbortRef.current = null;
+      }
       setLoading(false);
     }
   };

@@ -42,10 +42,12 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const login = async (email, password) => {
+  const login = async (email, password, config = {}) => {
     try {
       setError(null);
-      const response = await authAPI.login(email.trim(), password);
+      console.debug('[auth] login request start', email.trim());
+      const response = await authAPI.login(email.trim(), password, config);
+      console.debug('[auth] login response received', response.status);
       const payload = response.data?.data;
       if (!payload?.user) {
         throw new Error(response.data?.message || 'Login response did not include user details');
@@ -60,7 +62,12 @@ export const AuthProvider = ({ children }) => {
       setUser(user);
       return response.data;
     } catch (err) {
-      const message = err.response?.data?.message || err.message || 'Login failed';
+      console.debug('[auth] login request failed', {
+        code: err.code,
+        status: err.response?.status,
+        message: err.message,
+      });
+      const message = err.userMessage || err.response?.data?.message || err.message || 'Login failed';
       setError(message);
       throw err;
     }

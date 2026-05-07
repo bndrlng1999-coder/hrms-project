@@ -1,28 +1,66 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const normalizeApiBaseUrl = (rawValue) => {
+  const raw = String(rawValue || '/api').trim();
+  const withoutTrailingSlash = raw.replace(/\/+$/, '').replace(/(\/api)+$/i, '/api');
+  if (!withoutTrailingSlash) return '/api';
+  return withoutTrailingSlash;
+};
+
+const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
+const DEBUG_API = import.meta.env.DEV || import.meta.env.VITE_DEBUG_API === 'true';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: Number(import.meta.env.VITE_API_TIMEOUT_MS || 20000),
   headers: {
     'Content-Type': 'application/json',
+    Accept: 'application/json',
   },
 });
 
-// Add token to requests
+const isAuthLoginRequest = (config = {}) => String(config.url || '').includes('/auth/login');
+
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const method = String(config.method || 'GET').toUpperCase();
+  if (DEBUG_API) {
+    console.debug(`[api] ${method} start`, `${config.baseURL || ''}${config.url || ''}`);
   }
+
+  if (!isAuthLoginRequest(config)) {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  } else if (config.headers?.Authorization) {
+    delete config.headers.Authorization;
+  }
+
   return config;
 });
 
-// Handle responses
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (DEBUG_API) {
+      console.debug(`[api] ${response.config?.method?.toUpperCase()} response`, response.config?.url, response.status);
+    }
+    return response;
+  },
   (error) => {
-    const isLoginRequest = error.config?.url?.includes('/auth/login');
+    const isLoginRequest = isAuthLoginRequest(error.config);
+    if (DEBUG_API) {
+      console.debug('[api] request error', {
+        url: error.config?.url,
+        status: error.response?.status,
+        code: error.code,
+        message: error.message,
+      });
+    }
+
+    if (error.code === 'ECONNABORTED') {
+      error.userMessage = 'The API request timed out. Please check the backend URL and CORS configuration.';
+    }
+
     if (error.response?.status === 401 && !isLoginRequest) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
@@ -33,7 +71,7 @@ api.interceptors.response.use(
 );
 
 export const authAPI = {
-  login: (email, password) => api.post('/auth/login', { email, password }),
+  login: (email, password, config = {}) => api.post('/auth/login', { email, password }, config),
   changePassword: (data) => api.post('/auth/change-password', data),
   validateToken: () => api.get('/auth/validate'),
   me: () => api.get('/auth/me'),
@@ -157,7 +195,6 @@ export const projectTrackerAPI = {
   updateProject: (id, data) => api.put(`/projects/${id}`, data),
   deleteProject: (id) => api.delete(`/projects/${id}`),
   updateMembers: (id, data) => api.put(`/projects/${id}/members`, data),
-
   getIssues: (params = {}) => api.get('/issues', { params }),
   getIssue: (id) => api.get(`/issues/${id}`),
   createIssue: (data) => api.post('/issues', data),
@@ -166,14 +203,12 @@ export const projectTrackerAPI = {
   getComments: (id) => api.get(`/issues/${id}/comments`),
   addComment: (id, comment) => api.post(`/issues/${id}/comments`, { comment }),
   getActivity: (id) => api.get(`/issues/${id}/activity`),
-
   getSprints: (params = {}) => api.get('/sprints', { params }),
   getSprint: (id) => api.get(`/sprints/${id}`),
   createSprint: (data) => api.post('/sprints', data),
   updateSprint: (id, data) => api.put(`/sprints/${id}`, data),
   startSprint: (id) => api.put(`/sprints/${id}/start`),
   completeSprint: (id) => api.put(`/sprints/${id}/complete`),
-
   getReports: () => api.get('/reports/project-tracker'),
   getNotifications: () => api.get('/notifications'),
 };
@@ -251,4 +286,5 @@ export const mailService = internalMailAPI;
 export const notificationService = notificationAPI;
 export const adminService = adminAPI;
 
+export { API_BASE_URL };
 export default api;
