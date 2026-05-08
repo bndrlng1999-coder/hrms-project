@@ -1,0 +1,14 @@
+{
+  "name": "tanvox-hrms-deploy",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "npm --prefix hrms-frontend run build",
+    "lint": "npm --prefix hrms-frontend run lint",
+    "frontend:install": "npm --prefix hrms-frontend ci",
+    "backend:build": "mvn -f hrms-backend/pom.xml -DskipTests package"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}
