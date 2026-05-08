@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  API_BASE_URL,
   announcementAPI,
   attendanceAPI,
   crmAPI,
@@ -14,7 +15,8 @@ import {
 } from '../services/api';
 import { useNotification } from '../hooks/useNotification';
 import { useAuth } from '../context/AuthContext';
-import { PERMISSIONS, hasPermission } from '../auth/authorization';
+import { PERMISSIONS, hasPermission, hasRole } from '../auth/authorization';
+import { CRM_ROLES, FINANCE_ROLES, PROJECT_ROLES } from '../navigation/sidebarMenu';
 import {
   ActivityTimeline,
   EmptyState,
@@ -23,17 +25,18 @@ import {
   ProfileWidget,
   QuickActionButton,
   SocialFeedCard,
-  StatsStoryCards,
   StatusBadge,
 } from '../components/social/SocialComponents';
 
 const feedFilters = ['All', 'HR', 'Projects', 'CRM', 'Finance', 'Helpdesk'];
+const todayIso = () => new Date().toISOString().slice(0, 10);
 
 const DashboardPage = () => {
   const [stats, setStats] = useState(null);
   const [employee, setEmployee] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
+  const [attendanceToday, setAttendanceToday] = useState(null);
   const [attendance, setAttendance] = useState([]);
   const [leaves, setLeaves] = useState([]);
   const [issues, setIssues] = useState([]);
@@ -42,63 +45,117 @@ const DashboardPage = () => {
   const [payslips, setPayslips] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [loadErrors, setLoadErrors] = useState({});
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('All');
   const [visibleCount, setVisibleCount] = useState(8);
   const [loading, setLoading] = useState(true);
   const { showError } = useNotification();
   const { user } = useAuth();
+  const access = useMemo(() => getDashboardAccess(user), [user]);
 
   useEffect(() => {
+    if (!user) return;
     fetchDashboardData();
   }, [user?.id, user?.role]);
 
   const fetchDashboardData = async () => {
+    const errors = {};
+
+    const runDashboardRequest = async (key, requestFactory, fallback = null) => {
+      console.info('[dashboard] API request', {
+        key,
+        apiBase: API_BASE_URL,
+        tokenExists: Boolean(localStorage.getItem('token')),
+      });
+
+      try {
+        const response = await requestFactory();
+        const payload = unwrapApiPayload(response);
+        console.info('[dashboard] API response', { key, payload });
+        return payload ?? fallback;
+      } catch (error) {
+        const message = error.userMessage || error.response?.data?.message || error.message || 'Request failed';
+        errors[key] = {
+          message,
+          status: error.response?.status,
+        };
+        console.error('[dashboard] API error', {
+          key,
+          apiBase: API_BASE_URL,
+          status: error.response?.status,
+          message,
+        });
+        return fallback;
+      }
+    };
+
     try {
       setLoading(true);
-      const canViewEmployees = hasPermission(user, [PERMISSIONS.EMPLOYEE_VIEW_ALL, PERMISSIONS.EMPLOYEE_VIEW_SELF]);
-      const canProject = hasPermission(user, [PERMISSIONS.PROJECT_MANAGE, PERMISSIONS.PROJECT_CREATE, PERMISSIONS.PROJECT_UPDATE, PERMISSIONS.ISSUE_UPDATE]);
-      const canCrm = hasPermission(user, [PERMISSIONS.CRM_VIEW, PERMISSIONS.CRM_MANAGE]);
-      const canPayroll = hasPermission(user, [PERMISSIONS.PAYROLL_VIEW, PERMISSIONS.PAYROLL_MANAGE, PERMISSIONS.PAYSLIP_GENERATE]);
+      setLoadErrors({});
+      setVisibleCount(8);
 
-      const requests = await Promise.allSettled([
-        dashboardAPI.getStats(),
-        user?.id ? employeeAPI.getByUserId(user.id) : Promise.resolve({ data: { data: null } }),
-        canViewEmployees ? employeeAPI.getAll() : Promise.resolve({ data: { data: [] } }),
-        announcementAPI.getAll(),
-        attendanceAPI.myHistory(),
-        hasPermission(user, [PERMISSIONS.LEAVE_APPROVE]) ? leaveAPI.getPending() : Promise.resolve({ data: { data: [] } }),
-        canProject ? projectTrackerAPI.getIssues() : Promise.resolve({ data: { data: [] } }),
-        canProject ? projectTrackerAPI.getProjects() : Promise.resolve({ data: { data: [] } }),
-        canCrm ? crmAPI.getLeads() : Promise.resolve({ data: { data: [] } }),
-        canPayroll ? payslipAPI.getAll() : Promise.resolve({ data: { data: [] } }),
-        helpdeskAPI.getTickets(),
-        notificationAPI.getAll(),
-      ]);
+      const profilePayload = user?.id
+        ? await runDashboardRequest('profile', () => employeeAPI.getByUserId(user.id))
+        : null;
+      const profile = normalizeEntity(profilePayload);
+      setEmployee(profile);
 
-      const data = requests.map((result) => result.status === 'fulfilled' ? result.value.data.data : null);
-      setStats(data[0]);
-      setEmployee(data[1]);
-      setEmployees(data[2] || []);
-      setAnnouncements(data[3] || []);
-      setAttendance(data[4] || []);
-      setLeaves(data[5] || []);
-      setIssues(data[6] || []);
-      setProjects(data[7] || []);
-      setLeads(data[8] || []);
-      setPayslips(data[9] || []);
-      setTickets(data[10]?.tickets || []);
-      setNotifications(data[11] || []);
+      const resultEntries = await Promise.all([
+        ['stats', runDashboardRequest('stats', dashboardAPI.getStats)],
+        ['employees', access.canViewEmployees
+          ? runDashboardRequest('employees', employeeAPI.getAll, [])
+          : Promise.resolve([])],
+        ['announcements', runDashboardRequest('announcements', announcementAPI.getAll, [])],
+        ['attendanceToday', runDashboardRequest('attendanceToday', attendanceAPI.today)],
+        ['attendanceHistory', runDashboardRequest('attendanceHistory', attendanceAPI.myHistory, [])],
+        ['leaves', access.canApproveLeave
+          ? runDashboardRequest('pendingLeaves', leaveAPI.getPending, [])
+          : profile?.id
+            ? runDashboardRequest('employeeLeaves', () => leaveAPI.getByEmployee(profile.id), [])
+            : Promise.resolve([])],
+        ['issues', access.canProject ? runDashboardRequest('issues', projectTrackerAPI.getIssues, []) : Promise.resolve([])],
+        ['projects', access.canProject ? runDashboardRequest('projects', projectTrackerAPI.getProjects, []) : Promise.resolve([])],
+        ['leads', access.canCrm ? runDashboardRequest('crmLeads', crmAPI.getLeads, []) : Promise.resolve([])],
+        ['payslips', access.canPayroll
+          ? runDashboardRequest('payslips', payslipAPI.getAll, [])
+          : profile?.id
+            ? runDashboardRequest('employeePayslips', () => payslipAPI.getByEmployee(profile.id), [])
+            : Promise.resolve([])],
+        ['tickets', runDashboardRequest('helpdeskTickets', helpdeskAPI.getTickets, [])],
+        ['notifications', runDashboardRequest('notifications', notificationAPI.getAll, [])],
+      ].map(async ([key, promise]) => [key, await promise]));
+      const results = Object.fromEntries(resultEntries);
+
+      setStats(normalizeEntity(results.stats));
+      setEmployees(toArray(results.employees));
+      setAnnouncements(toArray(results.announcements));
+      setAttendanceToday(normalizeEntity(results.attendanceToday));
+      setAttendance(toArray(results.attendanceHistory));
+      setLeaves(toArray(results.leaves));
+      setIssues(toArray(results.issues));
+      setProjects(toArray(results.projects));
+      setLeads(toArray(results.leads));
+      setPayslips(toArray(results.payslips));
+      setTickets(toArray(results.tickets));
+      setNotifications(toArray(results.notifications));
+      setLoadErrors(errors);
+
+      if (Object.keys(errors).length > 0) {
+        showError('Some dashboard widgets could not load. Working sections are still shown.');
+      }
     } catch (error) {
-      showError(error.response?.data?.message || 'Failed to load dashboard');
+      showError(error.userMessage || error.response?.data?.message || 'Failed to load dashboard');
+      setLoadErrors({ dashboard: { message: error.message || 'Failed to load dashboard' } });
     } finally {
       setLoading(false);
     }
   };
 
-  const feedItems = useMemo(() => buildFeed({
-    announcements,
+  const dashboardMetrics = useMemo(() => buildMetrics({
+    stats,
     employees,
+    attendanceToday,
     attendance,
     leaves,
     issues,
@@ -107,19 +164,26 @@ const DashboardPage = () => {
     payslips,
     tickets,
     notifications,
-  }), [announcements, employees, attendance, leaves, issues, projects, leads, payslips, tickets, notifications]);
+    errors: loadErrors,
+    access,
+  }), [stats, employees, attendanceToday, attendance, leaves, issues, projects, leads, payslips, tickets, notifications, loadErrors, access]);
+
+  const feedItems = useMemo(() => buildFeed({
+    announcements,
+    employees,
+    attendance: [attendanceToday, ...attendance].filter(Boolean),
+    leaves,
+    issues,
+    projects,
+    leads,
+    payslips,
+    tickets,
+    notifications,
+  }), [announcements, employees, attendanceToday, attendance, leaves, issues, projects, leads, payslips, tickets, notifications]);
 
   const filteredFeed = feedItems
     .filter((item) => filter === 'All' || item.module === filter)
     .filter((item) => `${item.title} ${item.description} ${item.actor}`.toLowerCase().includes(query.toLowerCase()));
-
-  const stories = [
-    { label: 'Employees', value: stats?.totalEmployees || employees.length || 0, icon: 'EM', to: '/employees', tone: 'bg-primary-700' },
-    { label: 'Present', value: stats?.presentToday || 0, icon: 'IN', to: '/attendance', tone: 'bg-emerald-600' },
-    { label: 'Leaves', value: stats?.pendingLeaveRequests || leaves.length || 0, icon: 'LV', to: '/leave', tone: 'bg-amber-500' },
-    { label: 'Issues', value: issues.filter((issue) => issue.status !== 'DONE').length, icon: 'TK', to: '/projects/issues', tone: 'bg-cyan-600' },
-    { label: 'Leads', value: leads.length, icon: 'LD', to: '/crm/leads', tone: 'bg-rose-500' },
-  ];
 
   const quickActions = [
     { label: 'Apply leave', to: '/leave' },
@@ -130,13 +194,21 @@ const DashboardPage = () => {
     { label: 'Helpdesk ticket', to: '/helpdesk' },
   ];
 
-  const spotlight = employees.find((item) => item.isActive) || employee;
-  const todayAttendance = attendance.find((item) => item.attendanceDate === new Date().toISOString().slice(0, 10));
+  const spotlight = employees.find((item) => item.isActive !== false) || employee;
+  const openIssues = issues.filter((issue) => !['DONE', 'CLOSED', 'RESOLVED'].includes(String(issue.status || '').toUpperCase()));
+  const openTickets = tickets.filter((ticket) => !['RESOLVED', 'CLOSED'].includes(String(ticket.status || '').toUpperCase()));
+  const followUps = leads.filter((lead) => lead.nextFollowUpAt || lead.followUpDate || lead.slaStatus);
+  const todaysAttendanceStatus = attendanceToday?.status
+    || attendance.find((item) => item.attendanceDate === todayIso())?.status
+    || (stats?.presentToday > 0 ? `${stats.presentToday} present` : 'Not marked');
 
   if (loading) {
     return (
       <div className="social-dashboard-shell">
-        <div className="social-center"><LoadingSkeleton count={5} /></div>
+        <div className="social-center">
+          <div className="welcome-post h-52" />
+          <LoadingSkeleton count={5} />
+        </div>
       </div>
     );
   }
@@ -145,27 +217,66 @@ const DashboardPage = () => {
     <div className="social-dashboard-shell">
       <section className="social-center">
         <div className="welcome-post">
-          <div>
-            <p className="section-eyebrow text-white/75">Company Feed</p>
-            <h1 className="mt-3 text-3xl font-black text-white md:text-4xl">Good to see you, {displayName(employee, user)}</h1>
+          <div className="relative z-10">
+            <p className="section-eyebrow text-white/75">Live Company Feed</p>
+            <h1 className="mt-3 text-3xl font-black text-white md:text-4xl">
+              Good to see you, {displayName(employee, user)}
+            </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-white/80">
-              Your live enterprise feed blends HR, CRM, projects, finance, mail, and support activity into one role-aware workspace.
+              Real HR, projects, CRM, finance, support, and notification activity in one role-aware dashboard.
             </p>
           </div>
-          <div className="mt-6 flex flex-wrap gap-3">
+          <div className="relative z-10 mt-6 flex flex-wrap gap-3">
             <Link className="btn bg-white text-primary-800 hover:-translate-y-0.5 hover:bg-primary-50" to="/profile">View Profile</Link>
             <Link className="btn border border-white/30 bg-white/10 text-white hover:bg-white/20" to="/notifications">Notifications</Link>
           </div>
         </div>
 
-        <StatsStoryCards items={stories} />
+        <DashboardStatGrid items={dashboardMetrics} />
+
+        {Object.keys(loadErrors).length > 0 && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-900">
+            Some dashboard APIs returned errors. Open the browser console for temporary `[dashboard]` logs, or retry loading the dashboard.
+            <button type="button" className="ml-3 font-black underline" onClick={fetchDashboardData}>Retry</button>
+          </div>
+        )}
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          <DashboardPanel title="Pending Approvals" action="Review leaves" to="/leave">
+            {leaves.length === 0 ? (
+              <MiniEmpty text="No pending leave requests found." />
+            ) : leaves.slice(0, 4).map((item) => (
+              <CompactItem
+                key={item.id}
+                title={`${item.employeeName || 'Employee'} requested leave`}
+                meta={`${item.leaveType || 'Leave'} - ${item.fromDate || '-'} to ${item.toDate || '-'}`}
+                status={item.status || 'Pending'}
+                to="/leave"
+              />
+            ))}
+          </DashboardPanel>
+
+          <DashboardPanel title="Projects In Motion" action="Open issues" to="/projects/issues">
+            {openIssues.length === 0 ? (
+              <MiniEmpty text="No open project issues found." />
+            ) : openIssues.slice(0, 4).map((item) => (
+              <CompactItem
+                key={item.id}
+                title={item.title || item.issueKey || 'Project issue'}
+                meta={`${item.projectName || 'Project'} - ${item.assigneeName || 'Unassigned'}`}
+                status={item.priority || item.status || 'Open'}
+                to={item.id ? `/projects/issues/${item.id}` : '/projects/issues'}
+              />
+            ))}
+          </DashboardPanel>
+        </div>
 
         <div className="feed-toolbar">
           <input
             className="input-field"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search the company feed..."
+            placeholder="Search employees, projects, CRM, tickets, and notifications..."
           />
           <div className="flex gap-2 overflow-x-auto">
             {feedFilters.map((item) => (
@@ -183,8 +294,8 @@ const DashboardPage = () => {
 
         {filteredFeed.length === 0 ? (
           <EmptyState
-            title="No feed updates found"
-            message="Try another filter or search term. As teams work, new updates will appear here automatically."
+            title="No activity yet"
+            message="Create an announcement, add an employee, update a project, or log CRM activity to populate the company feed."
             action={<button type="button" className="btn btn-secondary" onClick={() => { setQuery(''); setFilter('All'); }}>Reset feed</button>}
           />
         ) : (
@@ -203,30 +314,48 @@ const DashboardPage = () => {
         <ProfileWidget user={user} employee={employee} />
 
         <div className="social-widget">
-          <h2 className="text-lg font-black text-slate-950">Today</h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-black text-slate-950">Today</h2>
+            <StatusBadge value={String(todaysAttendanceStatus).replaceAll('_', ' ')} tone="green" />
+          </div>
           <div className="mt-4 grid gap-3">
-            <WidgetRow label="Attendance" value={todayAttendance?.status || 'Not marked'} to="/attendance" />
-            <WidgetRow label="Pending approvals" value={leaves.length} to="/leave" />
-            <WidgetRow label="Tasks due soon" value={issues.filter((issue) => issue.dueDate).length} to="/projects/issues" />
-            <WidgetRow label="CRM follow-ups" value={leads.filter((lead) => lead.nextFollowUpAt).length} to="/crm/follow-ups" />
-            <WidgetRow label="Helpdesk open" value={tickets.filter((ticket) => ticket.status !== 'RESOLVED').length} to="/helpdesk" />
+            <WidgetRow label="Attendance" value={todaysAttendanceStatus} to="/attendance" />
+            <WidgetRow label="Leave approvals" value={leaves.length} to="/leave" />
+            <WidgetRow label="Tasks due soon" value={openIssues.length} to="/projects/issues" />
+            <WidgetRow label="CRM reminders" value={followUps.length} to="/crm/follow-ups" />
+            <WidgetRow label="Helpdesk open" value={openTickets.length} to="/helpdesk" />
           </div>
         </div>
 
         <ModuleBannerCard
-          eyebrow="Spotlight"
-          title={spotlight ? `${spotlight.firstName} ${spotlight.lastName}` : 'Employee Spotlight'}
-          description={spotlight?.designation || 'Recognize people, milestones, and team movement right from the dashboard.'}
+          eyebrow="Employee Spotlight"
+          title={spotlight ? `${spotlight.firstName || ''} ${spotlight.lastName || ''}`.trim() || spotlight.email || 'Team member' : 'Team spotlight'}
+          description={spotlight?.designation || spotlight?.departmentName || 'People milestones and recognition appear here as employee data loads.'}
           to={spotlight?.id ? `/employees/${spotlight.id}` : '/employees'}
           actionLabel="View profile"
           tone="from-emerald-600 to-cyan-700"
         />
 
         <div className="social-widget">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-black text-slate-950">Trending Updates</h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-black text-slate-950">Notifications</h2>
             <StatusBadge value={`${notifications.filter((item) => !item.readFlag).length} unread`} />
           </div>
+          <div className="mt-4 space-y-3">
+            {notifications.length === 0 ? <MiniEmpty text="No notifications found." /> : notifications.slice(0, 4).map((item) => (
+              <CompactItem
+                key={item.id}
+                title={item.title || 'Notification'}
+                meta={item.message || 'Workspace update'}
+                status={item.readFlag ? 'Read' : 'Unread'}
+                to={item.link || '/notifications'}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="social-widget">
+          <h2 className="text-lg font-black text-slate-950">Recent Activity</h2>
           <ActivityTimeline items={feedItems.slice(0, 6)} />
         </div>
       </aside>
@@ -236,12 +365,86 @@ const DashboardPage = () => {
   );
 };
 
-const WidgetRow = ({ label, value, to }) => (
-  <Link to={to} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 transition hover:border-primary-200 hover:bg-primary-50">
-    <span className="text-sm font-bold text-slate-700">{label}</span>
-    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">{String(value).replaceAll('_', ' ')}</span>
+const DashboardStatGrid = ({ items }) => (
+  <div className="dashboard-stat-grid">
+    {items.map((item) => (
+      <Link key={item.label} to={item.to || '/dashboard'} className="dashboard-stat-card">
+        <div className={`story-orb ${item.tone || 'bg-primary-700'}`}>{item.icon}</div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <p className="truncate text-xs font-black uppercase tracking-wide text-slate-500">{item.label}</p>
+            {item.error && <span className="rounded-full bg-red-50 px-2 py-1 text-[10px] font-black uppercase text-red-700">API</span>}
+          </div>
+          <p className="mt-1 text-2xl font-black text-slate-950">{item.value}</p>
+          <p className="mt-1 truncate text-xs font-bold text-slate-500">{item.caption}</p>
+        </div>
+      </Link>
+    ))}
+  </div>
+);
+
+const DashboardPanel = ({ title, action, to, children }) => (
+  <section className="dashboard-panel">
+    <div className="mb-4 flex items-center justify-between gap-3">
+      <h2 className="text-lg font-black text-slate-950">{title}</h2>
+      {to && <Link to={to} className="text-sm font-black text-primary-700 hover:text-primary-900">{action}</Link>}
+    </div>
+    <div className="space-y-3">{children}</div>
+  </section>
+);
+
+const CompactItem = ({ title, meta, status, to }) => (
+  <Link to={to || '/dashboard'} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 transition hover:border-primary-200 hover:bg-primary-50">
+    <span className="min-w-0">
+      <span className="block truncate text-sm font-black text-slate-900">{title}</span>
+      <span className="mt-1 block truncate text-xs font-semibold text-slate-500">{meta}</span>
+    </span>
+    <StatusBadge value={status} />
   </Link>
 );
+
+const MiniEmpty = ({ text }) => (
+  <div className="rounded-lg border border-dashed border-slate-250 bg-slate-50 px-4 py-5 text-sm font-semibold text-slate-500">
+    {text}
+  </div>
+);
+
+const WidgetRow = ({ label, value, to }) => (
+  <Link to={to} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 transition hover:border-primary-200 hover:bg-primary-50">
+    <span className="text-sm font-bold text-slate-700">{label}</span>
+    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">{String(value ?? '-').replaceAll('_', ' ')}</span>
+  </Link>
+);
+
+const buildMetrics = ({ stats, employees, attendanceToday, attendance, leaves, issues, projects, leads, payslips, tickets, notifications, errors, access }) => {
+  const internCount = employees.filter(isIntern).length;
+  const presentToday = Number(stats?.presentToday ?? 0) || countPresentToday(attendanceToday, attendance);
+  const openIssues = issues.filter((issue) => !['DONE', 'CLOSED', 'RESOLVED'].includes(String(issue.status || '').toUpperCase())).length;
+  const openTickets = tickets.filter((ticket) => !['RESOLVED', 'CLOSED'].includes(String(ticket.status || '').toUpperCase())).length;
+
+  return [
+    metric('Employees', stats?.totalEmployees ?? employees.length, access.canViewEmployees ? '/employees' : '/profile', 'EM', 'bg-primary-700', sourceError(errors, 'employees'), 'Active directory'),
+    metric('Interns', internCount, access.canViewEmployees ? '/interns' : '/profile', 'IN', 'bg-cyan-600', sourceError(errors, 'employees'), 'Current interns'),
+    metric('Attendance Today', presentToday, '/attendance', 'AT', 'bg-emerald-600', sourceError(errors, 'attendanceToday'), 'Present today'),
+    metric('Leave Requests', stats?.pendingLeaveRequests ?? leaves.length, '/leave', 'LV', 'bg-amber-500', sourceError(errors, 'pendingLeaves') || sourceError(errors, 'employeeLeaves'), 'Pending or recent'),
+    metric('Projects', projects.length, access.canProject ? '/projects' : '/dashboard', 'PR', 'bg-indigo-600', sourceError(errors, 'projects'), access.canProject ? 'Tracked projects' : 'Restricted'),
+    metric('Tasks', openIssues, access.canProject ? '/projects/issues' : '/dashboard', 'TK', 'bg-sky-600', sourceError(errors, 'issues'), access.canProject ? 'Open issues' : 'Restricted'),
+    metric('CRM Leads', leads.length, access.canCrm ? '/crm/leads' : '/dashboard', 'LD', 'bg-rose-500', sourceError(errors, 'crmLeads'), access.canCrm ? 'Pipeline updates' : 'Restricted'),
+    metric('Payslips', stats?.totalPayroll ?? payslips.length, access.canPayroll ? '/payslips' : '/profile', 'PY', 'bg-emerald-700', sourceError(errors, 'payslips') || sourceError(errors, 'employeePayslips'), 'Payroll records'),
+    metric('Helpdesk', openTickets, '/helpdesk', 'HD', 'bg-slate-800', sourceError(errors, 'helpdeskTickets'), 'Open tickets'),
+    metric('Notifications', notifications.length, '/notifications', 'NT', 'bg-violet-600', sourceError(errors, 'notifications'), 'Workspace alerts'),
+  ];
+};
+
+const metric = (label, value, to, icon, tone, error, caption) => ({
+  label,
+  value: error ? '--' : Number(value || 0),
+  to,
+  icon,
+  tone,
+  error,
+  caption: error?.message || caption,
+});
 
 const buildFeed = ({ announcements, employees, attendance, leaves, issues, projects, leads, payslips, tickets, notifications }) => {
   const items = [];
@@ -254,7 +457,7 @@ const buildFeed = ({ announcements, employees, attendance, leaves, issues, proje
     title: item.title || 'Company announcement',
     description: item.content || item.message || 'A new announcement was posted.',
     actor: item.createdBy || 'Leadership',
-    timestamp: item.createdAt,
+    timestamp: item.createdAt || item.updatedAt,
     to: '/announcements',
     meta: ['Announcement'],
   }));
@@ -264,16 +467,16 @@ const buildFeed = ({ announcements, employees, attendance, leaves, issues, proje
     type: 'employee',
     module: 'HR',
     tone: 'green',
-    title: `${item.firstName} ${item.lastName} joined the workspace`,
-    description: `${item.designation || 'Team member'} in ${item.departmentName || 'Tanvox'} is now part of the active directory.`,
-    actor: `${item.firstName} ${item.lastName}`,
+    title: `${item.firstName || ''} ${item.lastName || ''}`.trim() || item.email || 'Employee joined',
+    description: `${item.designation || 'Team member'} in ${item.departmentName || item.department?.name || 'Tanvox'} is in the active directory.`,
+    actor: `${item.firstName || ''} ${item.lastName || ''}`.trim() || item.email || 'Employee',
     timestamp: item.joiningDate || item.createdAt,
-    to: `/employees/${item.id}`,
-    meta: [item.employeeCode || 'Employee', item.departmentName || 'People'],
+    to: item.id ? `/employees/${item.id}` : '/employees',
+    meta: [item.employeeCode || 'Employee', item.departmentName || item.department?.name || 'People'],
   }));
 
   attendance.slice(0, 6).forEach((item) => items.push({
-    id: item.id,
+    id: item.id || `${item.employeeId || 'me'}-${item.attendanceDate || todayIso()}`,
     type: 'attendance',
     module: 'HR',
     tone: item.status === 'REJECTED' ? 'rose' : 'amber',
@@ -303,11 +506,11 @@ const buildFeed = ({ announcements, employees, attendance, leaves, issues, proje
     type: 'issue',
     module: 'Projects',
     tone: 'Project',
-    title: `${item.issueKey || 'Task'}: ${item.title}`,
-    description: `${item.projectName || 'Project'} moved through ${String(item.status || 'TODO').replaceAll('_', ' ')} with ${item.assigneeName || 'no assignee'} assigned.`,
+    title: `${item.issueKey || 'Task'}: ${item.title || 'Project issue'}`,
+    description: `${item.projectName || 'Project'} is ${String(item.status || 'TODO').replaceAll('_', ' ')} with ${item.assigneeName || 'no assignee'} assigned.`,
     actor: item.assigneeName || item.reporterName || 'Project team',
     timestamp: item.updatedAt || item.createdAt,
-    to: `/projects/issues/${item.id}`,
+    to: item.id ? `/projects/issues/${item.id}` : '/projects/issues',
     priority: item.priority,
     meta: [item.issueType || 'Task', item.projectKey || 'Project'],
   }));
@@ -317,11 +520,11 @@ const buildFeed = ({ announcements, employees, attendance, leaves, issues, proje
     type: 'project',
     module: 'Projects',
     tone: 'Project',
-    title: `${item.name} project update`,
+    title: `${item.name || 'Project'} update`,
     description: `${item.projectKey || 'Project'} is ${String(item.status || 'ACTIVE').replaceAll('_', ' ')} under ${item.leadName || 'the project team'}.`,
     actor: item.leadName || 'Project office',
-    timestamp: item.createdAt,
-    to: `/projects/${item.id}`,
+    timestamp: item.updatedAt || item.createdAt,
+    to: item.id ? `/projects/${item.id}` : '/projects',
     priority: item.priority,
     meta: [item.projectKey || 'Project', item.status || 'Active'],
   }));
@@ -331,7 +534,7 @@ const buildFeed = ({ announcements, employees, attendance, leaves, issues, proje
     type: 'lead',
     module: 'CRM',
     tone: 'CRM',
-    title: `${item.name || 'Lead'} is in ${String(item.status || 'NEW').replaceAll('_', ' ')}`,
+    title: `${item.name || item.company || 'Lead'} is in ${String(item.status || 'NEW').replaceAll('_', ' ')}`,
     description: `${item.company || 'Prospect'} is owned by ${item.assignedToName || 'CRM team'} with SLA ${item.slaStatus || 'ON_TIME'}.`,
     actor: item.assignedToName || 'CRM team',
     timestamp: item.updatedAt || item.createdAt || item.nextFollowUpAt,
@@ -347,7 +550,7 @@ const buildFeed = ({ announcements, employees, attendance, leaves, issues, proje
     title: `Payslip issued for ${item.employeeName || 'employee'}`,
     description: `Payroll document for ${item.month || '-'} / ${item.year || '-'} is available for review.`,
     actor: 'Finance',
-    timestamp: item.issuedDate,
+    timestamp: item.issuedDate || item.createdAt,
     to: '/payslips',
     meta: ['Payroll', 'Payslip'],
   }));
@@ -357,7 +560,7 @@ const buildFeed = ({ announcements, employees, attendance, leaves, issues, proje
     type: 'ticket',
     module: 'Helpdesk',
     tone: item.status === 'RESOLVED' ? 'green' : 'amber',
-    title: `${item.ticketNumber || 'Ticket'}: ${item.title}`,
+    title: `${item.ticketNumber || 'Ticket'}: ${item.title || item.subject || 'Support request'}`,
     description: `${item.employeeName || 'Employee'} has a ${String(item.status || 'OPEN').replaceAll('_', ' ').toLowerCase()} ${item.category || 'support'} request.`,
     actor: item.employeeName || 'Helpdesk',
     timestamp: item.updatedAt || item.createdAt,
@@ -379,6 +582,64 @@ const buildFeed = ({ announcements, employees, attendance, leaves, issues, proje
   }));
 
   return items.sort((left, right) => new Date(right.timestamp || 0) - new Date(left.timestamp || 0));
+};
+
+const unwrapApiPayload = (response) => {
+  const body = response?.data ?? response;
+  if (body && typeof body === 'object' && 'data' in body) return body.data;
+  return body;
+};
+
+const normalizeEntity = (payload) => {
+  if (Array.isArray(payload)) return payload[0] || null;
+  if (payload?.content && Array.isArray(payload.content)) return payload.content[0] || null;
+  if (payload?.items && Array.isArray(payload.items)) return payload.items[0] || null;
+  return payload || null;
+};
+
+const toArray = (payload) => {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload.content)) return payload.content;
+  if (Array.isArray(payload.items)) return payload.items;
+  if (Array.isArray(payload.results)) return payload.results;
+  if (Array.isArray(payload.records)) return payload.records;
+  if (Array.isArray(payload.tickets)) return payload.tickets;
+  if (Array.isArray(payload.notifications)) return payload.notifications;
+  if (Array.isArray(payload.leads)) return payload.leads;
+  if (Array.isArray(payload.projects)) return payload.projects;
+  if (Array.isArray(payload.issues)) return payload.issues;
+  return typeof payload === 'object' && payload.id ? [payload] : [];
+};
+
+const sourceError = (errors, key) => errors?.[key] || null;
+
+const getDashboardAccess = (user) => ({
+  canViewEmployees: hasPermission(user, [PERMISSIONS.EMPLOYEE_VIEW_ALL]),
+  canApproveLeave: hasPermission(user, [PERMISSIONS.LEAVE_APPROVE]),
+  canProject: hasRole(user, PROJECT_ROLES) && hasPermission(user, [
+    PERMISSIONS.PROJECT_MANAGE,
+    PERMISSIONS.PROJECT_CREATE,
+    PERMISSIONS.PROJECT_UPDATE,
+    PERMISSIONS.ISSUE_CREATE,
+    PERMISSIONS.ISSUE_UPDATE,
+  ]),
+  canCrm: hasRole(user, CRM_ROLES) && hasPermission(user, [PERMISSIONS.CRM_VIEW, PERMISSIONS.CRM_MANAGE]),
+  canPayroll: hasRole(user, FINANCE_ROLES) && hasPermission(user, [
+    PERMISSIONS.PAYROLL_VIEW,
+    PERMISSIONS.PAYROLL_MANAGE,
+    PERMISSIONS.PAYSLIP_GENERATE,
+  ]),
+});
+
+const isIntern = (employee) => {
+  const text = `${employee?.employeeType || ''} ${employee?.designation || ''} ${employee?.role || ''}`.toLowerCase();
+  return text.includes('intern');
+};
+
+const countPresentToday = (attendanceToday, attendance) => {
+  if (attendanceToday && ['PRESENT', 'APPROVED', 'CHECKED_IN'].includes(String(attendanceToday.status || '').toUpperCase())) return 1;
+  return attendance.filter((item) => item.attendanceDate === todayIso() && ['PRESENT', 'APPROVED', 'CHECKED_IN'].includes(String(item.status || '').toUpperCase())).length;
 };
 
 const displayName = (employee, user) => {

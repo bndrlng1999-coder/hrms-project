@@ -269,7 +269,7 @@ textarea {
 }
 
 .social-dashboard-shell {
-  @apply grid min-h-screen gap-6 bg-transparent px-4 pb-10 pt-24 sm:px-6 lg:ml-64 lg:grid-cols-[minmax(0,1fr)_22rem] lg:px-8;
+  @apply grid min-h-screen gap-6 bg-transparent px-4 pb-10 pt-24 sm:px-6 lg:ml-64 lg:px-8 xl:grid-cols-[minmax(0,1fr)_22rem];
   animation: pageIn 0.22s ease-out;
 }
 
@@ -278,7 +278,7 @@ textarea {
 }
 
 .social-right-rail {
-  @apply hidden space-y-6 xl:block;
+  @apply space-y-6;
 }
 
 .welcome-post {
@@ -296,6 +296,18 @@ textarea {
 
 .story-card {
   @apply flex items-center gap-3 rounded-lg border border-slate-200 bg-white/95 p-4 shadow-sm shadow-slate-200/80 transition-all duration-300 hover:-translate-y-1 hover:border-primary-200 hover:shadow-xl hover:shadow-slate-200;
+}
+
+.dashboard-stat-grid {
+  @apply grid gap-4 sm:grid-cols-2 xl:grid-cols-5;
+}
+
+.dashboard-stat-card {
+  @apply flex min-h-[7.5rem] items-center gap-3 rounded-lg border border-slate-200 bg-white/95 p-4 shadow-sm shadow-slate-200/80 transition-all duration-300 hover:-translate-y-1 hover:border-primary-200 hover:shadow-xl hover:shadow-slate-200;
+}
+
+.dashboard-panel {
+  @apply rounded-lg border border-slate-200 bg-white/95 p-5 shadow-lg shadow-slate-200/80 backdrop-blur;
 }
 
 .story-orb {

@@ -23,8 +23,12 @@ const isAuthLoginRequest = (config = {}) => String(config.url || '').includes('/
 
 api.interceptors.request.use((config) => {
   const method = String(config.method || 'GET').toUpperCase();
+  const tokenExists = Boolean(localStorage.getItem('token'));
   if (DEBUG_API) {
-    console.debug(`[api] ${method} start`, `${config.baseURL || ''}${config.url || ''}`);
+    console.debug(`[api] ${method} start`, `${config.baseURL || ''}${config.url || ''}`, {
+      baseURL: config.baseURL,
+      tokenExists,
+    });
   }
 
   if (!isAuthLoginRequest(config)) {
